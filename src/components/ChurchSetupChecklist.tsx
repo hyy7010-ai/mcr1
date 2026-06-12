@@ -50,7 +50,7 @@ export default function ChurchSetupChecklist() {
 
   // Form state — church info
   const [churchInfo, setChurchInfo] = useState({
-    address: church?.address || '',
+    location: church?.location || church?.address || '',
     phone: church?.phone || '',
     website: church?.website || '',
     meeting_time: church?.meeting_time || '',
@@ -113,7 +113,7 @@ export default function ChurchSetupChecklist() {
         return (
           <div className="space-y-4">
             {[
-              { label: '教会地址', field: 'address', placeholder: '例：123 Church St, Melbourne' },
+              { label: '教会地址', field: 'location', placeholder: '例：123 Church St, Melbourne' },
               { label: '联系电话', field: 'phone', placeholder: '例：+61 3 9999 0000' },
               { label: '官方网站', field: 'website', placeholder: '例：https://yourchurch.org' },
               { label: '聚会时间', field: 'meeting_time', placeholder: '例：每周日上午 10:00' },
@@ -226,7 +226,7 @@ export default function ChurchSetupChecklist() {
     try {
       if (openModal === 'info' && activeChurchId) {
         await supabase.from('churches').update({
-          address: churchInfo.address,
+          location: churchInfo.location,
           phone: churchInfo.phone,
           website: churchInfo.website,
           meeting_time: churchInfo.meeting_time,

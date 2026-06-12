@@ -139,7 +139,8 @@ export default function About() {
         description: church.description || t('churchDesc'),
         imageUrl: church.image_url || 'https://images.unsplash.com/photo-1544427920-c49ccfb85579?q=80&w=1600&auto=format&fit=crop',
         logoUrl: church.logo_url || '',
-        location: church.location || '123 Grace Way, Serenity City',
+        location: church.location || '',
+        serviceTimes: (church as any).meeting_time || prev.serviceTimes,
       }));
     }
   }, [church, t]);
@@ -156,6 +157,7 @@ export default function About() {
           image_url: aboutData.imageUrl,
           logo_url: aboutData.logoUrl,
           location: aboutData.location,
+          meeting_time: aboutData.serviceTimes,
         })
         .eq('id', church.id);
 
