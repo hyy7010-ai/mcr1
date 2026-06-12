@@ -12,6 +12,7 @@ import { rosterService } from '../services/rosterService';
 import { memberService } from '../services/memberService';
 import { logActivity } from '../services/activityService';
 import { format, eachDayOfInterval, startOfMonth, endOfMonth, getDay } from 'date-fns';
+import ChurchSetupChecklist from '../components/ChurchSetupChecklist';
 
 const verses = [
   { quote: "verse1_quote", ref: "Hebrews 11:1" },
@@ -323,6 +324,8 @@ export default function Dashboard() {
            </div>
         </div>
       )}
+
+      {mode === 'Manager' && <ChurchSetupChecklist />}
 
       <Reorder.Group axis="y" values={sections} onReorder={setSections} className="space-y-12">
         {sections.map(sectionId => (

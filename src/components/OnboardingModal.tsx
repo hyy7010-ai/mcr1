@@ -212,6 +212,15 @@ export default function OnboardingModal({ onDone }: Props) {
                 {isZh ? '填写您的基本信息，方便管理员认识您' : 'Help your church team get to know you'}
               </p>
             </div>
+            {/* Skip only allowed on non-required steps */}
+            {step > 1 && (
+              <button
+                onClick={handleSkip}
+                className="text-[10px] font-black uppercase tracking-widest text-gray-300 hover:text-gray-500 transition-colors mt-1"
+              >
+                {isZh ? '跳过' : 'SKIP'}
+              </button>
+            )}
           </div>
 
           {/* Step indicator */}
@@ -543,6 +552,8 @@ export default function OnboardingModal({ onDone }: Props) {
             <button
               onClick={() => {
                 if (step === 1 && !name.trim()) return;
+                // Skip step 4 entirely if no groups exist
+                if (step === 3 && availableGroups.length === 0) { handleSubmit(); return; }
                 setStep(s => s + 1);
               }}
               disabled={step === 1 && !name.trim()}
@@ -572,6 +583,7 @@ export default function OnboardingModal({ onDone }: Props) {
 
 export const needsOnboarding = (userId: string | undefined, role: string | undefined) => {
   if (!userId) return false;
-  if (!role || role === 'Pending' || role === 'Super Admin' || role === 'SuperAdmin') return false;
+  // Manager creates the church — they get the setup checklist instead of this wizard
+  if (!role || role === 'Pending' || role === 'Manager' || role === 'Super Admin' || role === 'SuperAdmin') return false;
   return !localStorage.getItem(ONBOARDING_KEY(userId));
 };
