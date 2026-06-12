@@ -26,6 +26,7 @@ export default function Layout() {
   const [composeSending, setComposeSending] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(() => needsOnboarding(user?.id, profile?.role, profile?.onboarding_completed));
   const [isLogoUploading, setIsLogoUploading] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false); // mobile drawer; always visible on md+
   const dropdownRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
   const helpRef = useRef<HTMLDivElement>(null);
@@ -46,6 +47,9 @@ export default function Layout() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Close the mobile sidebar drawer whenever the route changes.
+  useEffect(() => { setSidebarOpen(false); }, [location.pathname]);
 
   const canManage = canManageChurch(profile, user);
   const canStaff = canDoStaff(profile, user);
@@ -244,10 +248,29 @@ export default function Layout() {
         <OnboardingModal onDone={() => setShowOnboarding(false)} />
       )}
 
-      {/* Sidebar */}
-      <nav className="fixed left-0 top-0 h-full w-72 flex flex-col border-r border-outline-variant/30 bg-surface-container-lowest py-6 z-50 shadow-2xl print:hidden">
+      {/* Mobile backdrop — tap to close the drawer */}
+      <AnimatePresence>
+        {sidebarOpen && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={() => setSidebarOpen(false)}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 md:hidden print:hidden"
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Sidebar — off-canvas drawer on mobile, always visible on md+ */}
+      <nav className={`fixed left-0 top-0 h-full w-72 flex flex-col border-r border-outline-variant/30 bg-surface-container-lowest py-6 z-50 shadow-2xl print:hidden transition-transform duration-300 ease-out md:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        {/* Close button (mobile drawer only) */}
+        <button
+          onClick={() => setSidebarOpen(false)}
+          aria-label={isZh ? '关闭菜单' : 'Close menu'}
+          className="md:hidden absolute top-4 right-4 w-9 h-9 rounded-xl flex items-center justify-center text-outline hover:bg-surface-container active:scale-95 transition-all"
+        >
+          <span className="material-symbols-outlined text-[22px]">close</span>
+        </button>
         <div className="px-6 mb-8 flex flex-col gap-1 group">
-          <div 
+          <div
             onClick={() => (mode === 'Manager' || isPlatformAdmin) && logoInputRef.current?.click()}
             className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-primary/20 transition-all overflow-hidden relative ${
               (mode === 'Manager' || isPlatformAdmin) ? 'cursor-pointer hover:scale-110 active:scale-95' : ''
@@ -385,11 +408,20 @@ export default function Layout() {
       </nav>
 
       {/* Main Content Area */}
-      <div className="ml-72 flex-1 flex flex-col min-w-0 h-full bg-surface relative">
+      <div className="md:ml-72 flex-1 flex flex-col min-w-0 h-full bg-surface relative">
         {/* Top Navbar */}
         <header className="shrink-0 z-40 flex w-full items-center justify-between border-b border-outline-variant/20 bg-surface/90 px-8 py-4 backdrop-blur-md">
-          <div className="text-xl font-bold tracking-tight text-primary font-serif md:hidden">
-            {church?.name || (isPlatformAdmin ? '平台管理控制台' : '...')}
+          <div className="flex items-center gap-2 md:hidden">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              aria-label={isZh ? '打开菜单' : 'Open menu'}
+              className="w-10 h-10 -ml-2 rounded-xl flex items-center justify-center text-on-surface hover:bg-surface-container active:scale-95 transition-all"
+            >
+              <span className="material-symbols-outlined text-[24px]">menu</span>
+            </button>
+            <div className="text-xl font-bold tracking-tight text-primary font-serif truncate max-w-[150px]">
+              {church?.name || (isPlatformAdmin ? '平台管理控制台' : '...')}
+            </div>
           </div>
           <div className="hidden md:block">
              <div className="flex items-center gap-2 text-outline/50 text-[10px] font-black uppercase tracking-[0.2em]">
