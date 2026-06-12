@@ -340,6 +340,19 @@ export default function SuperAdmin() {
     }
   };
 
+  const handleToggleVerified = async (church: Church) => {
+    const next = !(church as any).verified;
+    try {
+      const { error } = await supabase.from('churches')
+        .update({ verified: next, verification_status: next ? 'verified' : 'none' })
+        .eq('id', church.id);
+      if (error) throw error;
+      setChurches(prev => prev.map(c => c.id === church.id ? { ...c, verified: next, verification_status: next ? 'verified' : 'none' } as any : c));
+    } catch (err: any) {
+      alert('认证状态更新失败 / Failed: ' + err.message);
+    }
+  };
+
   const handleDeleteChurchConfirm = async () => {
     if (!churchToDelete) return;
     setIsDeletingChurch(true);
@@ -531,10 +544,18 @@ export default function SuperAdmin() {
                     >delete</button>
                   </div>
                 </div>
-                <h3 className="text-2xl font-serif font-black text-on-surface mb-2 leading-tight">{church.name}</h3>
-                <div className="flex items-center gap-2 mb-4">
+                <h3 className="text-2xl font-serif font-black text-on-surface mb-2 leading-tight flex items-center gap-2">
+                  {church.name}
+                  {(church as any).verified && (
+                    <span className="material-symbols-outlined filled text-emerald-500 text-[20px]" title="已认证">verified</span>
+                  )}
+                </h3>
+                <div className="flex items-center gap-2 mb-4 flex-wrap">
                    <span className="px-2 py-0.5 rounded bg-surface-container text-[10px] font-mono font-bold text-outline">{church.code}</span>
                    {church.domain && <span className="text-[10px] text-outline opacity-60 truncate">@{church.domain}</span>}
+                   {(church as any).verification_status === 'pending' && !(church as any).verified && (
+                     <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 text-[9px] font-black uppercase tracking-widest">待认证</span>
+                   )}
                 </div>
 
                 {/* Manager Info */}
@@ -572,6 +593,17 @@ export default function SuperAdmin() {
 
                 <div className="mt-auto flex gap-3">
                   <button onClick={() => handleManageChurch(church)} className="flex-1 py-3.5 bg-black text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-primary transition-all active:scale-95 shadow-lg shadow-black/10">Manage</button>
+                  <button
+                    onClick={() => handleToggleVerified(church)}
+                    title={(church as any).verified ? '撤销认证' : '通过认证'}
+                    className={`px-4 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all active:scale-95 shadow-lg flex items-center justify-center gap-1.5 ${
+                      (church as any).verified
+                        ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100'
+                        : 'bg-emerald-500 text-white shadow-emerald-500/20 hover:bg-emerald-600'
+                    }`}>
+                    <span className="material-symbols-outlined text-[16px]">verified</span>
+                    {(church as any).verified ? '已认证' : '认证'}
+                  </button>
                 </div>
               </div>
             ))}

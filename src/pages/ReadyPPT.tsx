@@ -5,7 +5,6 @@ import { useMode } from '../contexts/ModeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { getActiveChurchId } from '../lib/permissions';
 import { supabase } from '../lib/supabase';
-import pptxgen from "pptxgenjs";
 
 const DEFAULT_PPT_CATEGORIES = ['本周', '主日学', '敬拜', '讲道'];
 
@@ -322,6 +321,7 @@ export default function ReadyPPT() {
 
     (async () => {
       try {
+        const { default: pptxgen } = await import('pptxgenjs');
         let pres = new pptxgen();
         pres.layout = 'LAYOUT_16x9';
 

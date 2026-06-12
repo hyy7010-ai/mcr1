@@ -1,8 +1,5 @@
 import React, { useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import html2canvas from 'html2canvas';
-import { jsPDF } from 'jspdf';
-import { Document, Paragraph, TextRun, HeadingLevel, AlignmentType, PageOrientation, Packer, BorderStyle } from 'docx';
 
 interface Song {
   id: string;
@@ -218,6 +215,10 @@ export default function LyricsSheetModal({ songs: initialSongs, allSongs = [], o
     if (!previewRef.current) return;
     setIsExporting(true);
     try {
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+        import('html2canvas'),
+        import('jspdf'),
+      ]);
       const pageEls = previewRef.current.querySelectorAll<HTMLElement>('.lyric-a4-page');
       const pdf = new jsPDF({ orientation: isLandscape ? 'landscape' : 'portrait', unit: 'mm', format: 'a4' });
       const pdfW = isLandscape ? A4_H_MM : A4_W_MM;
@@ -239,6 +240,7 @@ export default function LyricsSheetModal({ songs: initialSongs, allSongs = [], o
   const exportWord = useCallback(async () => {
     setIsExporting(true);
     try {
+      const { Document, Paragraph, TextRun, HeadingLevel, PageOrientation, Packer, BorderStyle } = await import('docx');
       const children: any[] = [];
       if (sheetTitle) children.push(new Paragraph({ text: sheetTitle, heading: HeadingLevel.TITLE }));
       selectedSongs.forEach((song, idx) => {

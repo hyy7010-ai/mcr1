@@ -13,7 +13,6 @@ import { churchService } from '../services/churchService';
 import { isDemoChurch, getActiveChurchId } from '../lib/permissions';
 import { tValue } from '../lib/valueLabels';
 import { tr } from '../lib/uiText';
-import { jsPDF } from 'jspdf';
 
 type RoleTag = string;
 
@@ -312,7 +311,10 @@ export default function Roster() {
     if (btn) btn.innerHTML = '<span class="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>';
 
     try {
-      const { toCanvas } = await import('html-to-image');
+      const [{ toCanvas }, { jsPDF }] = await Promise.all([
+        import('html-to-image'),
+        import('jspdf'),
+      ]);
       
       // Temporarily reveal the element for html-to-image
       element.style.position = 'static';
@@ -1250,7 +1252,61 @@ export default function Roster() {
                     const tableRoles = staffRoles
                       ?? (selectedRoleFilter === 'All' ? activeRoles : activeRoles.filter(r => r === selectedRoleFilter));
                     return (
-                      <table className="w-full border-separate border-spacing-x-0 border-spacing-y-0">
+                      <>
+                      {/* ── Mobile: one card per service date, roles stacked ── */}
+                      <div className="md:hidden space-y-4 px-1">
+                        {sundays.map(date => {
+                          const dateStr = format(date, 'yyyy-MM-dd');
+                          const dayAsgns = assignments[dateStr] || [];
+                          return (
+                            <div key={dateStr} className="rounded-3xl bg-white border border-outline-variant/10 shadow-sm overflow-hidden">
+                              <div className="flex items-center gap-3 px-4 py-3 bg-surface-container-low/60 border-b border-outline-variant/10">
+                                <span className="text-2xl font-serif font-black text-on-surface tracking-tighter">{format(date, 'd')}</span>
+                                <div className="flex flex-col leading-none">
+                                  <span className="text-[10px] font-black uppercase tracking-tighter text-outline/60">{format(date, 'MMMM')}</span>
+                                  <span className="text-[8px] font-black uppercase tracking-widest text-primary mt-0.5">{format(date, 'EEEE')}</span>
+                                </div>
+                              </div>
+                              <div className="divide-y divide-outline-variant/10">
+                                {tableRoles.map(role => {
+                                  const roleAsgn = dayAsgns.find(a => a.role === role);
+                                  const isUserAsgn = roleAsgn?.staffId === currentUser?.id;
+                                  const staff = roleAsgn ? staffList.find(s => s.id === roleAsgn.staffId) : null;
+                                  if (mode === 'Staff' && roleAsgn && !isUserAsgn) return null;
+                                  return (
+                                    <div key={role} className="flex items-center gap-3 px-4 py-2.5">
+                                      <span className="text-[9px] font-black uppercase tracking-widest text-outline/60 w-24 shrink-0 truncate">{tValue(role, language)}</span>
+                                      {roleAsgn ? (
+                                        <div className="flex-1 flex items-center gap-2.5 min-w-0">
+                                          <div className="h-8 w-8 rounded-lg bg-surface-container-low shadow-sm flex items-center justify-center font-serif font-black text-[10px] shrink-0 overflow-hidden text-primary">
+                                            {staff?.avatar ? <img src={staff.avatar} className="w-full h-full object-cover" alt="" /> : staff?.initials}
+                                          </div>
+                                          <span className="text-[11px] font-bold uppercase tracking-tight truncate text-on-surface flex-1">{staff?.name}</span>
+                                          {mode === 'Manager' && (
+                                            <button
+                                              onClick={() => handleRemoveAssignment(dateStr, roleAsgn.id)}
+                                              className="w-7 h-7 rounded-full flex items-center justify-center text-outline/30 hover:bg-error hover:text-white transition-all shrink-0">
+                                              <span className="material-symbols-outlined text-[14px]">close</span>
+                                            </button>
+                                          )}
+                                        </div>
+                                      ) : (
+                                        <button
+                                          onClick={() => { setModalPreselectedRole(role); setSelectedDayDetail(dateStr); }}
+                                          className="flex-1 h-9 rounded-xl border-2 border-dashed border-outline-variant/10 flex items-center justify-center text-outline/20 active:bg-surface-container-low transition-colors">
+                                          <span className="material-symbols-outlined text-[16px]">add_circle</span>
+                                        </button>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {/* ── Desktop: original wide table ── */}
+                      <table className="w-full border-separate border-spacing-x-0 border-spacing-y-0 hidden md:table">
                         <thead>
                           <tr className="sticky top-0 z-40 bg-white">
                             <th className="sticky left-0 z-50 bg-white p-4 text-left w-[120px] border-b border-outline-variant/20 border-r border-outline-variant/10 shadow-[2px_0_10px_rgba(0,0,0,0.05)]">
@@ -1356,6 +1412,7 @@ export default function Roster() {
                       })}
                     </tbody>
                   </table>
+                  </>
                 );
               })()}
             </div>

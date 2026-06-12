@@ -10,7 +10,6 @@ import { googleDriveService } from '../services/googleDrive';
 import { supabase } from '../lib/supabase';
 import { isSuperAdmin, getActiveChurchId, isDemoChurch } from '../lib/permissions';
 
-import pptxgen from "pptxgenjs";
 import LyricsSheetModal from '../components/LyricsSheetModal';
 
 interface Song {
@@ -617,6 +616,7 @@ export default function Songs() {
     setDownloadStatus(`${t('generating')} ${targetFileName}...`);
 
     try {
+      const { default: pptxgen } = await import('pptxgenjs');
       const generatePPT = async (songsToExport: any[], finalName: string, isSingle: boolean = false) => {
         let pres = new pptxgen();
         pres.layout = 'LAYOUT_16x9';
