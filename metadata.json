@@ -1,0 +1,6 @@
+{
+  "name": "MCR Church Management",
+  "description": "GraceFlow - A comprehensive church management system with membership tracking, activity logs, and AI-powered tools.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": []
+}
