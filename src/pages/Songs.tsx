@@ -131,6 +131,10 @@ export default function Songs() {
   ]);
   const [readyFilter, setReadyFilter] = useState<'all' | 'song' | 'weekly' | 'sermon'>('all');
   const [isAddingSong, setIsAddingSong] = useState(false);
+  // Bulk add: pick how many songs, paste lyrics for each (first line = title), save all at once
+  const [isBulkAdding, setIsBulkAdding] = useState(false);
+  const [bulkTexts, setBulkTexts] = useState<string[]>(['', '', '']);
+  const [bulkSaving, setBulkSaving] = useState(false);
   const [newSongUrl, setNewSongUrl] = useState('');
   const [isFetchingLyrics, setIsFetchingLyrics] = useState(false);
   const [newSongData, setNewSongData] = useState({ 
@@ -604,6 +608,81 @@ export default function Songs() {
     }
   };
 
+  // Bulk add: each box = one song; first line is the title, the rest is the lyrics.
+  // Saves everything in one go instead of the add→paste→save loop per song.
+  const handleSaveBulkSongs = async () => {
+    const parsed = bulkTexts
+      .map(text => {
+        const lines = text.split('\n');
+        const titleIdx = lines.findIndex(l => l.trim());
+        if (titleIdx === -1) return null;
+        const title = lines[titleIdx].trim();
+        const lyrics = lines.slice(titleIdx + 1).join('\n').trim();
+        return lyrics ? { title, lyrics } : null;
+      })
+      .filter(Boolean) as { title: string; lyrics: string }[];
+
+    if (parsed.length === 0) {
+      setDownloadStatus(isZh ? '❌ 请粘贴歌词（每格第一行是歌名）' : '❌ Paste lyrics first (first line = title)');
+      setTimeout(() => setDownloadStatus(null), 4000);
+      return;
+    }
+
+    setBulkSaving(true);
+    const toLocalSong = (s: { title: string; lyrics: string }): Song => ({
+      id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      title: s.title,
+      englishTitle: '',
+      lyrics: s.lyrics,
+      englishLyrics: '',
+      key: 'C',
+      external_url: '',
+      pages: Math.ceil((s.lyrics.split('\n').filter(l => l.trim()).length || 1) / (linesPerSlide || 2)) + 1,
+    });
+
+    try {
+      if (!activeChurchId || isDemoChurch(church)) {
+        setLibrarySongs([...parsed.map(toLocalSong), ...librarySongs]);
+      } else {
+        const { data, error } = await supabase
+          .from('songs')
+          .insert(parsed.map(s => ({ church_id: activeChurchId, title: s.title, lyrics: s.lyrics, key: 'C' })))
+          .select();
+        if (error || !data) {
+          console.warn('Bulk save fell back to local:', error?.message);
+          setLibrarySongs([...parsed.map(toLocalSong), ...librarySongs]);
+        } else {
+          const saved: Song[] = data.map((d: any) => ({
+            id: d.id,
+            title: d.title,
+            englishTitle: d.english_title || '',
+            lyrics: d.lyrics,
+            englishLyrics: d.english_lyrics || '',
+            key: d.key || 'C',
+            external_url: d.external_url || '',
+            pages: Math.ceil((d.lyrics?.split('\n').filter((l: string) => l.trim()).length || 1) / (linesPerSlide || 2)) + 1,
+          }));
+          setLibrarySongs([...saved, ...librarySongs]);
+          logActivity({
+            churchId: activeChurchId,
+            userId: user?.id,
+            userName: profile?.full_name || user?.email || 'Unknown',
+            userRole: profile?.role || 'Staff',
+            action: isZh ? `批量添加 ${saved.length} 首歌曲` : `Bulk added ${saved.length} songs`,
+            target: saved.map(s => s.title).join(', '),
+            type: 'Resource',
+          });
+        }
+      }
+      setIsBulkAdding(false);
+      setBulkTexts(['', '', '']);
+      setDownloadStatus(isZh ? `✅ 已添加 ${parsed.length} 首歌` : `✅ Added ${parsed.length} songs`);
+      setTimeout(() => setDownloadStatus(null), 3000);
+    } finally {
+      setBulkSaving(false);
+    }
+  };
+
   const handleDownload = async (fileName: string, songsOverride?: any[]) => {
     const today = new Date();
     const dateStr = `${today.getFullYear()}-${(today.getMonth()+1).toString().padStart(2, '0')}-${today.getDate().toString().padStart(2, '0')}`;
@@ -869,10 +948,17 @@ export default function Songs() {
              </div>
           </div>
 
-          <div className="flex-1 flex justify-end">
-            <button 
+          <div className="flex-1 flex justify-end gap-3">
+            <button
+              onClick={() => setIsBulkAdding(true)}
+              className="px-6 py-5 bg-white text-black border-2 border-black/10 rounded-[24px] font-black uppercase tracking-widest text-xs flex items-center gap-2 hover:border-black transition-all active:scale-95 whitespace-nowrap"
+            >
+              <span className="material-symbols-outlined">library_add</span>
+              {isZh ? '批量添加' : 'Bulk Add'}
+            </button>
+            <button
               onClick={() => setIsAddingSong(true)}
-              className="px-8 py-5 bg-black text-white rounded-[24px] font-black uppercase tracking-widest text-xs flex items-center gap-3 hover:bg-emerald-600 transition-all shadow-xl shadow-black/10 active:scale-95"
+              className="px-8 py-5 bg-black text-white rounded-[24px] font-black uppercase tracking-widest text-xs flex items-center gap-3 hover:bg-emerald-600 transition-all shadow-xl shadow-black/10 active:scale-95 whitespace-nowrap"
             >
               <span className="material-symbols-outlined">add</span>
               {t('addSong')}
@@ -1960,6 +2046,74 @@ export default function Songs() {
       )}
 
       {/* Add Song Modal */}
+      {isBulkAdding && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-[32px] w-full max-w-3xl p-10 shadow-2xl relative max-h-[90vh] flex flex-col"
+          >
+            <div className="flex justify-between items-center mb-2">
+              <h2 className="text-3xl font-serif font-black text-[#2C2C2C]">{isZh ? '批量添加歌曲' : 'Bulk Add Songs'}</h2>
+              <button onClick={() => setIsBulkAdding(false)} className="h-10 w-10 rounded-full bg-[#F9F7F5] flex items-center justify-center hover:bg-black hover:text-white transition-all">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <p className="text-sm text-outline mb-6">
+              {isZh ? '每个格子贴一首歌：第一行写歌名，下面贴歌词。一次全部保存。' : 'One box per song: first line is the title, lyrics below. Saved all at once.'}
+            </p>
+
+            {/* How many songs */}
+            <div className="flex items-center gap-3 mb-6">
+              <span className="text-[10px] font-black uppercase tracking-widest text-outline">{isZh ? '几首歌？' : 'How many songs?'}</span>
+              <div className="flex gap-2">
+                {[2, 3, 4, 5, 6].map(n => (
+                  <button
+                    key={n}
+                    onClick={() => setBulkTexts(prev => {
+                      const next = [...prev];
+                      while (next.length < n) next.push('');
+                      return next.slice(0, n);
+                    })}
+                    className={`w-10 h-10 rounded-xl font-black text-sm transition-all ${bulkTexts.length === n ? 'bg-black text-white shadow-md' : 'bg-[#F9F7F5] text-outline hover:bg-[#E5E0DA]'}`}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* One paste box per song */}
+            <div className="flex-1 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-4 pr-1">
+              {bulkTexts.map((text, i) => (
+                <div key={i} className="flex flex-col">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-outline ml-1 mb-1">
+                    {isZh ? `第 ${i + 1} 首` : `Song ${i + 1}`}
+                  </label>
+                  <textarea
+                    value={text}
+                    onChange={e => setBulkTexts(prev => prev.map((v, j) => (j === i ? e.target.value : v)))}
+                    placeholder={isZh ? '歌名\n歌词第一行\n歌词第二行\n…' : 'Title\nLyric line 1\nLyric line 2\n…'}
+                    className="w-full h-44 p-4 rounded-2xl bg-[#F9F7F5] border-none outline-none font-bold text-sm resize-none focus:ring-2 focus:ring-black/10"
+                  />
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={handleSaveBulkSongs}
+              disabled={bulkSaving}
+              className="mt-6 w-full py-5 bg-black text-white rounded-[24px] font-black uppercase tracking-widest text-xs flex items-center justify-center gap-3 hover:bg-emerald-600 transition-all disabled:opacity-50"
+            >
+              {bulkSaving
+                ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                : <span className="material-symbols-outlined">done_all</span>}
+              {isZh ? `保存全部 ${bulkTexts.filter(t2 => t2.trim()).length} 首` : `Save all ${bulkTexts.filter(t2 => t2.trim()).length}`}
+            </button>
+          </motion.div>
+        </div>
+      )}
+
       {isAddingSong && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
           <motion.div 
