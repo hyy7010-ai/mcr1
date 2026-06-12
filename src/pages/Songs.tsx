@@ -504,6 +504,18 @@ export default function Songs() {
   };
 
   const handleSaveNewSong = async () => {
+    // Warn if this song is already in the library (matched by title)
+    const normTitle = (s: string) => s.toLowerCase().replace(/\s+/g, '');
+    const dup = librarySongs.find(s =>
+      (newSongData.title && normTitle(s.title || '') === normTitle(newSongData.title)) ||
+      (newSongData.englishTitle && normTitle(s.englishTitle || '') === normTitle(newSongData.englishTitle))
+    );
+    if (dup && !window.confirm(isZh
+      ? `歌库里已经有《${dup.title}》了，还要再加一首吗？`
+      : `"${dup.title}" is already in the library. Add it again anyway?`)) {
+      return;
+    }
+
     // Demo church or no church → save locally only
     if (!activeChurchId || isDemoChurch(church)) {
       const localSong: Song = {
@@ -628,6 +640,24 @@ export default function Songs() {
       return;
     }
 
+    // Skip songs already in the library (and duplicates within this batch), matched by title.
+    const norm = (s: string) => s.toLowerCase().replace(/\s+/g, '');
+    const existing = new Set(librarySongs.flatMap(s => [norm(s.title || ''), norm(s.englishTitle || '')]).filter(Boolean));
+    const fresh: typeof parsed = [];
+    const skipped: string[] = [];
+    for (const s of parsed) {
+      const key = norm(s.title);
+      if (existing.has(key)) { skipped.push(s.title); continue; }
+      existing.add(key);
+      fresh.push(s);
+    }
+    if (fresh.length === 0) {
+      setDownloadStatus(isZh ? `⚠️ ${skipped.length} 首歌都已在歌库里，没有重复添加` : `⚠️ All ${skipped.length} songs already exist — nothing added`);
+      setTimeout(() => setDownloadStatus(null), 5000);
+      return;
+    }
+    const parsedToSave = fresh;
+
     setBulkSaving(true);
     const toLocalSong = (s: { title: string; lyrics: string }): Song => ({
       id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -642,15 +672,15 @@ export default function Songs() {
 
     try {
       if (!activeChurchId || isDemoChurch(church)) {
-        setLibrarySongs([...parsed.map(toLocalSong), ...librarySongs]);
+        setLibrarySongs([...parsedToSave.map(toLocalSong), ...librarySongs]);
       } else {
         const { data, error } = await supabase
           .from('songs')
-          .insert(parsed.map(s => ({ church_id: activeChurchId, title: s.title, lyrics: s.lyrics, key: 'C' })))
+          .insert(parsedToSave.map(s => ({ church_id: activeChurchId, title: s.title, lyrics: s.lyrics, key: 'C' })))
           .select();
         if (error || !data) {
           console.warn('Bulk save fell back to local:', error?.message);
-          setLibrarySongs([...parsed.map(toLocalSong), ...librarySongs]);
+          setLibrarySongs([...parsedToSave.map(toLocalSong), ...librarySongs]);
         } else {
           const saved: Song[] = data.map((d: any) => ({
             id: d.id,
@@ -676,7 +706,9 @@ export default function Songs() {
       }
       setIsBulkAdding(false);
       setBulkTexts(['', '', '']);
-      setDownloadStatus(isZh ? `✅ 已添加 ${parsed.length} 首歌` : `✅ Added ${parsed.length} songs`);
+      setDownloadStatus(isZh
+        ? `✅ 已添加 ${parsedToSave.length} 首歌${skipped.length ? `，跳过 ${skipped.length} 首已存在（${skipped.join('、')}）` : ''}`
+        : `✅ Added ${parsedToSave.length} song(s)${skipped.length ? `, skipped ${skipped.length} duplicate(s)` : ''}`);
       setTimeout(() => setDownloadStatus(null), 3000);
     } finally {
       setBulkSaving(false);
