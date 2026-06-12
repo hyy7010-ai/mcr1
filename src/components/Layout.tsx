@@ -24,7 +24,7 @@ export default function Layout() {
   const [composeAudience, setComposeAudience] = useState<'Staff' | 'all'>('Staff');
   const [composeText, setComposeText] = useState('');
   const [composeSending, setComposeSending] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(() => needsOnboarding(user?.id, profile?.role));
+  const [showOnboarding, setShowOnboarding] = useState(() => needsOnboarding(user?.id, profile?.role, profile?.onboarding_completed));
   const [isLogoUploading, setIsLogoUploading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);

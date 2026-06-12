@@ -165,20 +165,28 @@ export default function OnboardingModal({ onDone }: Props) {
           .insert({ church_id: activeChurchId, group_id: selectedGroupId, profile_id: user.id });
       }
 
-      if (user?.id) localStorage.setItem(ONBOARDING_KEY(user.id), '1');
+      if (user?.id) {
+        localStorage.setItem(ONBOARDING_KEY(user.id), '1');
+        await supabase.from('profiles').update({ onboarding_completed: true }).eq('id', user.id);
+      }
       onDone();
     } catch (err) {
       console.error('Onboarding save error:', err);
-      // Still mark as done to not block the user
-      if (user?.id) localStorage.setItem(ONBOARDING_KEY(user.id), '1');
+      if (user?.id) {
+        localStorage.setItem(ONBOARDING_KEY(user.id), '1');
+        supabase.from('profiles').update({ onboarding_completed: true }).eq('id', user.id);
+      }
       onDone();
     } finally {
       setSaving(false);
     }
   };
 
-  const handleSkip = () => {
-    if (user?.id) localStorage.setItem(ONBOARDING_KEY(user.id), '1');
+  const handleSkip = async () => {
+    if (user?.id) {
+      localStorage.setItem(ONBOARDING_KEY(user.id), '1');
+      await supabase.from('profiles').update({ onboarding_completed: true }).eq('id', user.id);
+    }
     onDone();
   };
 
@@ -581,9 +589,14 @@ export default function OnboardingModal({ onDone }: Props) {
   );
 }
 
-export const needsOnboarding = (userId: string | undefined, role: string | undefined) => {
+export const needsOnboarding = (
+  userId: string | undefined,
+  role: string | undefined,
+  onboardingCompleted?: boolean,
+) => {
   if (!userId) return false;
-  // Manager creates the church — they get the setup checklist instead of this wizard
   if (!role || role === 'Pending' || role === 'Manager' || role === 'Super Admin' || role === 'SuperAdmin') return false;
+  // DB flag takes precedence; fall back to localStorage for existing users
+  if (onboardingCompleted === true) return false;
   return !localStorage.getItem(ONBOARDING_KEY(userId));
 };

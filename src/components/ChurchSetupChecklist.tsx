@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { getActiveChurchId } from '../lib/permissions';
 
 const DISMISSED_KEY = (churchId: string) => `church_setup_dismissed_${churchId}`;
+const VERIFIED_NOTIF_KEY = (churchId: string) => `church_verified_notif_dismissed_${churchId}`;
 
 // Map local item IDs → setup_progress JSONB keys
 const DB_KEY: Record<string, string> = {
@@ -16,6 +17,11 @@ const DB_KEY: Record<string, string> = {
   bsb: 'bsb',
 };
 
+const GROUP_COLORS = [
+  '#2563EB', '#7C3AED', '#059669', '#DC2626',
+  '#D97706', '#0891B2', '#DB2777', '#374151',
+];
+
 interface ChecklistItem {
   id: string;
   label: string;
@@ -24,19 +30,11 @@ interface ChecklistItem {
   locked?: boolean;
 }
 
-interface ModalContent {
-  id: string;
-  title: string;
-  body: React.ReactNode;
-  onSave?: () => Promise<void>;
-}
-
 export default function ChurchSetupChecklist() {
-  const { church, profile, user, updateChurch } = useAuth() as any;
+  const { church, profile, updateChurch } = useAuth() as any;
   const activeChurchId = getActiveChurchId(profile, church);
 
   const [done, setDone] = useState<Set<string>>(() => {
-    // Seed from church.setup_progress if available
     const sp = (church as any)?.setup_progress;
     if (!sp) return new Set();
     return new Set(Object.entries(DB_KEY).filter(([, dbk]) => sp[dbk] === true).map(([id]) => id));
@@ -44,22 +42,33 @@ export default function ChurchSetupChecklist() {
   const [dismissed, setDismissed] = useState(() =>
     activeChurchId ? !!localStorage.getItem(DISMISSED_KEY(activeChurchId)) : false
   );
+  const [verifiedNotifDismissed, setVerifiedNotifDismissed] = useState(() =>
+    activeChurchId ? !!localStorage.getItem(VERIFIED_NOTIF_KEY(activeChurchId)) : false
+  );
   const [openModal, setOpenModal] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // Form state for modals
-  const [churchInfo, setChurchInfo] = useState({ address: church?.address || '', meeting_time: church?.meeting_time || '' });
-  const [hasGroups, setHasGroups] = useState(false);
+  // Form state — church info
+  const [churchInfo, setChurchInfo] = useState({
+    address: church?.address || '',
+    phone: church?.phone || '',
+    website: church?.website || '',
+    meeting_time: church?.meeting_time || '',
+  });
+
+  // Form state — group creation
+  const [groupForm, setGroupForm] = useState({
+    name: '',
+    color: GROUP_COLORS[0],
+    meeting_address: '',
+  });
+
   const [joinCodeCopied, setJoinCodeCopied] = useState(false);
 
-  useEffect(() => {
-    if (!activeChurchId) return;
-    supabase.from('church_groups').select('id').eq('church_id', activeChurchId).limit(1)
-      .then(({ data }) => setHasGroups((data?.length || 0) > 0));
-    // Auto-mark based on existing church data (also persists to Supabase)
-    if (church?.address && church?.meeting_time) markDone('info');
-    if (church?.logo_url) markDone('logo');
-  }, [activeChurchId]);
+  const isVerified = !!(church as any)?.verified;
+
+  // Show verification notification when church becomes verified and BSB not yet done
+  const showVerifiedNotif = isVerified && !done.has('bsb') && !verifiedNotifDismissed;
 
   const markDone = useCallback(async (id: string) => {
     setDone(prev => { const next = new Set(prev); next.add(id); return next; });
@@ -75,10 +84,17 @@ export default function ChurchSetupChecklist() {
     }
   }, [activeChurchId, church, updateChurch]);
 
-  const isVerified = !!(church as any)?.verified;
+  useEffect(() => {
+    if (!activeChurchId) return;
+    supabase.from('church_groups').select('id').eq('church_id', activeChurchId).limit(1)
+      .then(({ data }) => { if ((data?.length || 0) > 0) markDone('group'); });
+    if (church?.address && church?.meeting_time) markDone('info');
+    if (church?.logo_url) markDone('logo');
+  }, [activeChurchId]);
+
   const items: ChecklistItem[] = [
-    { id: 'info', label: '填写教会基本信息', desc: '地址 · 聚会时间', icon: 'church' },
-    { id: 'group', label: '创建第一个小组', desc: '建立团契或事工小组', icon: 'groups' },
+    { id: 'info', label: '填写教会基本信息', desc: '地址 · 电话 · 网站 · 聚会时间', icon: 'church' },
+    { id: 'group', label: '创建第一个小组', desc: '小组名 · 颜色 · 聚会地点', icon: 'groups' },
     { id: 'logo', label: '上传教会 Logo', desc: '让教会主页更完整', icon: 'add_photo_alternate' },
     { id: 'invite', label: '邀请会友加入', desc: `加入码：${church?.code || '—'}`, icon: 'person_add' },
     { id: 'verify', label: '提交认证申请', desc: '完成平台认证', icon: 'verified' },
@@ -90,38 +106,65 @@ export default function ChurchSetupChecklist() {
 
   if (dismissed) return null;
 
-  // ── Modal content per item ──────────────────────────────────────
+  // ── Modal body per item ───────────────────────────────────────────
   const renderModalBody = () => {
     switch (openModal) {
       case 'info':
         return (
           <div className="space-y-4">
-            <div>
-              <label className="text-[10px] font-black uppercase tracking-widest text-neutral-400 mb-1.5 block">教会地址</label>
-              <input value={churchInfo.address} onChange={e => setChurchInfo(p => ({ ...p, address: e.target.value }))}
-                placeholder="例：123 Church Street, Melbourne"
-                className="w-full border border-neutral-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100" />
-            </div>
-            <div>
-              <label className="text-[10px] font-black uppercase tracking-widest text-neutral-400 mb-1.5 block">聚会时间</label>
-              <input value={churchInfo.meeting_time} onChange={e => setChurchInfo(p => ({ ...p, meeting_time: e.target.value }))}
-                placeholder="例：每周日上午 10:00"
-                className="w-full border border-neutral-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100" />
-            </div>
+            {[
+              { label: '教会地址', field: 'address', placeholder: '例：123 Church St, Melbourne' },
+              { label: '联系电话', field: 'phone', placeholder: '例：+61 3 9999 0000' },
+              { label: '官方网站', field: 'website', placeholder: '例：https://yourchurch.org' },
+              { label: '聚会时间', field: 'meeting_time', placeholder: '例：每周日上午 10:00' },
+            ].map(({ label, field, placeholder }) => (
+              <div key={field}>
+                <label className="text-[10px] font-black uppercase tracking-widest text-neutral-400 mb-1.5 block">{label}</label>
+                <input
+                  value={(churchInfo as any)[field]}
+                  onChange={e => setChurchInfo(p => ({ ...p, [field]: e.target.value }))}
+                  placeholder={placeholder}
+                  className="w-full border border-neutral-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                />
+              </div>
+            ))}
           </div>
         );
+
       case 'group':
         return (
-          <div className="text-center py-4">
-            <span className="material-symbols-outlined text-5xl text-emerald-400 mb-4 block">groups</span>
-            <p className="text-sm text-neutral-600 mb-6">{hasGroups ? '你已经创建了小组！' : '前往小组页面创建第一个团契或事工小组。'}</p>
-            <a href="/app/groups" onClick={() => { markDone('group'); setOpenModal(null); }}
-              className="inline-flex items-center gap-2 bg-emerald-500 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-emerald-600 transition-colors">
-              <span className="material-symbols-outlined text-[18px]">open_in_new</span>
-              {hasGroups ? '查看小组' : '去创建小组'}
-            </a>
+          <div className="space-y-4">
+            <div>
+              <label className="text-[10px] font-black uppercase tracking-widest text-neutral-400 mb-1.5 block">小组名称</label>
+              <input
+                value={groupForm.name}
+                onChange={e => setGroupForm(p => ({ ...p, name: e.target.value }))}
+                placeholder="例：青年团契"
+                className="w-full border border-neutral-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-black uppercase tracking-widest text-neutral-400 mb-1.5 block">小组颜色</label>
+              <div className="flex gap-2 flex-wrap">
+                {GROUP_COLORS.map(c => (
+                  <button key={c} onClick={() => setGroupForm(p => ({ ...p, color: c }))}
+                    className={`w-8 h-8 rounded-xl transition-all ${groupForm.color === c ? 'ring-2 ring-offset-2 ring-neutral-800 scale-110' : 'hover:scale-105'}`}
+                    style={{ background: c }} />
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="text-[10px] font-black uppercase tracking-widest text-neutral-400 mb-1.5 block">聚会地点</label>
+              <input
+                value={groupForm.meeting_address}
+                onChange={e => setGroupForm(p => ({ ...p, meeting_address: e.target.value }))}
+                placeholder="例：副堂 B203"
+                className="w-full border border-neutral-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+              />
+            </div>
           </div>
         );
+
       case 'logo':
         return (
           <div className="text-center py-4">
@@ -130,18 +173,21 @@ export default function ChurchSetupChecklist() {
             <p className="text-xs text-neutral-400">支持 PNG / JPG，建议正方形图片</p>
           </div>
         );
+
       case 'invite':
         return (
           <div className="text-center py-6 space-y-4">
             <div className="text-6xl font-black tracking-widest text-neutral-900 font-mono">{church?.code}</div>
             <p className="text-sm text-neutral-500">把这个加入码分享给你的会友，他们在登录页面输入此码即可申请加入。</p>
-            <button onClick={() => { navigator.clipboard.writeText(church?.code || ''); setJoinCodeCopied(true); setTimeout(() => setJoinCodeCopied(false), 2000); }}
+            <button
+              onClick={() => { navigator.clipboard.writeText(church?.code || ''); setJoinCodeCopied(true); setTimeout(() => setJoinCodeCopied(false), 2000); }}
               className="flex items-center gap-2 mx-auto bg-neutral-800 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-black transition-colors">
               <span className="material-symbols-outlined text-[16px]">{joinCodeCopied ? 'check' : 'content_copy'}</span>
               {joinCodeCopied ? '已复制！' : '复制加入码'}
             </button>
           </div>
         );
+
       case 'verify':
         return (
           <div className="text-center py-4 space-y-3">
@@ -150,6 +196,7 @@ export default function ChurchSetupChecklist() {
             <p className="text-xs text-neutral-400">如需加急认证，请联系平台管理员。</p>
           </div>
         );
+
       case 'bsb':
         return isVerified ? (
           <div className="space-y-4">
@@ -168,6 +215,7 @@ export default function ChurchSetupChecklist() {
             <p className="text-sm text-neutral-500">请先完成教会认证，才能设置奉献账号。</p>
           </div>
         );
+
       default: return null;
     }
   };
@@ -177,15 +225,25 @@ export default function ChurchSetupChecklist() {
     setSaving(true);
     try {
       if (openModal === 'info' && activeChurchId) {
-        await supabase.from('churches').update({ address: churchInfo.address, meeting_time: churchInfo.meeting_time }).eq('id', activeChurchId);
-        if (typeof updateChurch === 'function') updateChurch({ address: churchInfo.address, meeting_time: churchInfo.meeting_time });
-        markDone('info');
-      } else if (openModal === 'invite') {
-        markDone('invite');
-      } else if (openModal === 'verify') {
-        markDone('verify');
+        await supabase.from('churches').update({
+          address: churchInfo.address,
+          phone: churchInfo.phone,
+          website: churchInfo.website,
+          meeting_time: churchInfo.meeting_time,
+        }).eq('id', activeChurchId);
+        if (typeof updateChurch === 'function') updateChurch({ ...churchInfo });
+        await markDone('info');
+      } else if (openModal === 'group' && activeChurchId && groupForm.name.trim()) {
+        await supabase.from('church_groups').insert({
+          church_id: activeChurchId,
+          name: groupForm.name.trim(),
+          color: groupForm.color,
+          meeting_address: groupForm.meeting_address.trim(),
+          description: '',
+        });
+        await markDone('group');
       } else if (openModal === 'bsb' && isVerified) {
-        markDone('bsb');
+        await markDone('bsb');
       }
       setOpenModal(null);
     } finally { setSaving(false); }
@@ -193,13 +251,37 @@ export default function ChurchSetupChecklist() {
 
   const canSave = (id: string | null) => {
     if (id === 'info') return !!(churchInfo.address.trim() && churchInfo.meeting_time.trim());
+    if (id === 'group') return !!groupForm.name.trim();
     if (id === 'bsb') return isVerified;
     return false;
   };
-  const showSaveButton = (id: string | null) => ['info', 'bsb'].includes(id || '');
+  const showSaveButton = (id: string | null) => ['info', 'group', 'bsb'].includes(id || '');
 
   return (
     <>
+      {/* Verification notification banner */}
+      <AnimatePresence>
+        {showVerifiedNotif && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+            className="mb-3 flex items-center gap-3 bg-emerald-500 text-white px-5 py-3.5 rounded-2xl shadow-lg shadow-emerald-500/30"
+          >
+            <span className="material-symbols-outlined text-[20px]">verified</span>
+            <p className="flex-1 text-sm font-bold">认证已通过 🎉 现在可以设置奉献账号了</p>
+            <button
+              onClick={() => { setOpenModal('bsb'); setVerifiedNotifDismissed(true); if (activeChurchId) localStorage.setItem(VERIFIED_NOTIF_KEY(activeChurchId), '1'); }}
+              className="text-[11px] font-black uppercase tracking-widest bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg transition-colors">
+              立即设置
+            </button>
+            <button
+              onClick={() => { setVerifiedNotifDismissed(true); if (activeChurchId) localStorage.setItem(VERIFIED_NOTIF_KEY(activeChurchId), '1'); }}
+              className="w-7 h-7 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors">
+              <span className="material-symbols-outlined text-[14px]">close</span>
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <motion.div
         initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}
@@ -217,7 +299,6 @@ export default function ChurchSetupChecklist() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            {/* Progress bar */}
             <div className="w-28 h-1.5 bg-neutral-100 rounded-full overflow-hidden">
               <motion.div className="h-full bg-emerald-500 rounded-full"
                 initial={{ width: 0 }}
@@ -225,13 +306,24 @@ export default function ChurchSetupChecklist() {
                 transition={{ duration: 0.5 }} />
             </div>
             {allDone && (
-              <button onClick={() => { setDismissed(true); if (activeChurchId) localStorage.setItem(DISMISSED_KEY(activeChurchId), '1'); /* dismissed is UI-only, keep in localStorage */}}
+              <button onClick={() => { setDismissed(true); if (activeChurchId) localStorage.setItem(DISMISSED_KEY(activeChurchId), '1'); }}
                 className="text-[10px] font-black uppercase tracking-widest text-neutral-400 hover:text-neutral-600 transition-colors">
                 关闭
               </button>
             )}
           </div>
         </div>
+
+        {/* Congratulations banner */}
+        {allDone && (
+          <div className="mx-4 mt-4 bg-emerald-50 border border-emerald-100 rounded-2xl px-5 py-4 flex items-center gap-3">
+            <span className="material-symbols-outlined text-emerald-500 text-[28px]">celebration</span>
+            <div>
+              <p className="text-sm font-black text-emerald-800">教会设置全部完成！🎉</p>
+              <p className="text-xs text-emerald-600">你的教会已准备就绪，随时可以关闭此卡片。</p>
+            </div>
+          </div>
+        )}
 
         {/* Items grid */}
         <div className="p-4 grid grid-cols-2 md:grid-cols-3 gap-2">
@@ -288,7 +380,9 @@ export default function ChurchSetupChecklist() {
               </div>
               <div className="px-6 py-5">{renderModalBody()}</div>
               <div className="px-6 pb-5 flex justify-end gap-2">
-                <button onClick={() => setOpenModal(null)} className="px-4 py-2.5 rounded-xl text-sm font-bold text-neutral-500 hover:bg-neutral-100 transition-colors">取消</button>
+                <button onClick={() => setOpenModal(null)} className="px-4 py-2.5 rounded-xl text-sm font-bold text-neutral-500 hover:bg-neutral-100 transition-colors">
+                  {done.has(openModal!) ? '关闭' : '跳过'}
+                </button>
                 {openModal === 'invite' && (
                   <button onClick={() => { markDone('invite'); setOpenModal(null); }}
                     className="px-5 py-2.5 rounded-xl text-sm font-bold bg-emerald-500 text-white hover:bg-emerald-600 transition-colors">
