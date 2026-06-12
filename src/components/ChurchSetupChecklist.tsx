@@ -4,8 +4,17 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { getActiveChurchId } from '../lib/permissions';
 
-const CHECKLIST_KEY = (churchId: string) => `church_setup_done_${churchId}`;
 const DISMISSED_KEY = (churchId: string) => `church_setup_dismissed_${churchId}`;
+
+// Map local item IDs → setup_progress JSONB keys
+const DB_KEY: Record<string, string> = {
+  info: 'basic_info',
+  group: 'first_group',
+  logo: 'logo',
+  invite: 'invite',
+  verify: 'verification',
+  bsb: 'bsb',
+};
 
 interface ChecklistItem {
   id: string;
@@ -27,9 +36,10 @@ export default function ChurchSetupChecklist() {
   const activeChurchId = getActiveChurchId(profile, church);
 
   const [done, setDone] = useState<Set<string>>(() => {
-    if (!activeChurchId) return new Set();
-    try { return new Set(JSON.parse(localStorage.getItem(CHECKLIST_KEY(activeChurchId)) || '[]')); }
-    catch { return new Set(); }
+    // Seed from church.setup_progress if available
+    const sp = (church as any)?.setup_progress;
+    if (!sp) return new Set();
+    return new Set(Object.entries(DB_KEY).filter(([, dbk]) => sp[dbk] === true).map(([id]) => id));
   });
   const [dismissed, setDismissed] = useState(() =>
     activeChurchId ? !!localStorage.getItem(DISMISSED_KEY(activeChurchId)) : false
@@ -44,24 +54,26 @@ export default function ChurchSetupChecklist() {
 
   useEffect(() => {
     if (!activeChurchId) return;
-    // Check if groups exist
     supabase.from('church_groups').select('id').eq('church_id', activeChurchId).limit(1)
       .then(({ data }) => setHasGroups((data?.length || 0) > 0));
-    // Auto-mark items based on existing data
-    const autoDone = new Set(done);
-    if (church?.address && church?.meeting_time) autoDone.add('info');
-    if (church?.logo_url) autoDone.add('logo');
-    setDone(autoDone);
-  }, [activeChurchId, church]);
-
-  const markDone = useCallback((id: string) => {
-    setDone(prev => {
-      const next = new Set(prev);
-      next.add(id);
-      if (activeChurchId) localStorage.setItem(CHECKLIST_KEY(activeChurchId), JSON.stringify([...next]));
-      return next;
-    });
+    // Auto-mark based on existing church data (also persists to Supabase)
+    if (church?.address && church?.meeting_time) markDone('info');
+    if (church?.logo_url) markDone('logo');
   }, [activeChurchId]);
+
+  const markDone = useCallback(async (id: string) => {
+    setDone(prev => { const next = new Set(prev); next.add(id); return next; });
+    if (!activeChurchId) return;
+    const dbKey = DB_KEY[id];
+    if (!dbKey) return;
+    const current = (church as any)?.setup_progress || {};
+    await supabase.from('churches')
+      .update({ setup_progress: { ...current, [dbKey]: true } })
+      .eq('id', activeChurchId);
+    if (typeof updateChurch === 'function') {
+      updateChurch({ setup_progress: { ...current, [dbKey]: true } });
+    }
+  }, [activeChurchId, church, updateChurch]);
 
   const isVerified = !!(church as any)?.verified;
   const items: ChecklistItem[] = [
@@ -213,7 +225,7 @@ export default function ChurchSetupChecklist() {
                 transition={{ duration: 0.5 }} />
             </div>
             {allDone && (
-              <button onClick={() => { setDismissed(true); if (activeChurchId) localStorage.setItem(DISMISSED_KEY(activeChurchId), '1'); }}
+              <button onClick={() => { setDismissed(true); if (activeChurchId) localStorage.setItem(DISMISSED_KEY(activeChurchId), '1'); /* dismissed is UI-only, keep in localStorage */}}
                 className="text-[10px] font-black uppercase tracking-widest text-neutral-400 hover:text-neutral-600 transition-colors">
                 关闭
               </button>
