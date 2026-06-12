@@ -212,12 +212,6 @@ export default function OnboardingModal({ onDone }: Props) {
                 {isZh ? '填写您的基本信息，方便管理员认识您' : 'Help your church team get to know you'}
               </p>
             </div>
-            <button
-              onClick={handleSkip}
-              className="text-[10px] font-black uppercase tracking-widest text-gray-300 hover:text-gray-500 transition-colors mt-1"
-            >
-              {isZh ? '跳过' : 'Skip'}
-            </button>
           </div>
 
           {/* Step indicator */}
