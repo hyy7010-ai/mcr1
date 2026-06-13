@@ -11,7 +11,7 @@ import { FEATURE_MODULES, FEATURE_ROLES, FeatureConfig } from '../lib/featureMod
 export default function Tools() {
   const { t, language, isZh } = useLanguage();
   const { mode } = useMode();
-  const { church, updateChurch } = useAuth();
+  const { church, updateChurch, profile } = useAuth();
   const [activeTab, setActiveTab] = useState<'finance' | 'newcomers' | 'features'>('finance');
   const [featureCfg, setFeatureCfg] = useState<FeatureConfig>(() => (church as any)?.feature_config || {});
   const [savingFeatures, setSavingFeatures] = useState(false);
@@ -143,6 +143,27 @@ export default function Tools() {
     if (!church?.id) return;
     const fetchData = async () => {
       setLoading(true);
+      // Finance history — shared per church so Manager + Staff see the same records.
+      try {
+        const { data: fin } = await supabase
+          .from('church_finance')
+          .select('*')
+          .eq('church_id', church.id)
+          .order('created_at', { ascending: false });
+        if (fin) {
+          setHistory(fin.map((r: any) => ({
+            id: r.id,
+            date: r.date,
+            cashTotal: Number(r.cash_total) || 0,
+            tithe: Number(r.tithe) || 0,
+            reimbursement: Number(r.reimbursement) || 0,
+            grandTotal: Number(r.grand_total) || 0,
+            details: r.details || {},
+            signees: r.signees || [],
+          })));
+        }
+      } catch (e) { console.warn('finance load failed', e); }
+      // Members (for the newcomers tab — managers only, but harmless if it fails)
       try {
         const allMembers = await memberService.getMembers(church.id);
         setNewFriends(allMembers.filter(m => m.status === 'New Friend'));
@@ -215,7 +236,7 @@ export default function Tools() {
     return cashTotal;
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const totalCash = calculateTotal();
 
     // Validate signatures — both signatories must sign
@@ -246,14 +267,36 @@ export default function Tools() {
       ]
     };
 
+    // Optimistic add, then persist to the shared church_finance table so Manager + Staff sync.
     setHistory([newRecord, ...history]);
     setShowAddModal(false);
-    // Reset form
     setCounts({});
     setTithe('0');
     setReimbursement('0');
     setSignee1('');
     setSignee2('');
+
+    if (church?.id) {
+      try {
+        const { data, error } = await supabase.from('church_finance').insert({
+          church_id: church.id,
+          date: newRecord.date,
+          cash_total: newRecord.cashTotal,
+          tithe: newRecord.tithe,
+          reimbursement: newRecord.reimbursement,
+          grand_total: newRecord.grandTotal,
+          details: newRecord.details,
+          signees: newRecord.signees,
+          created_by: profile?.full_name || 'Unknown',
+        }).select().single();
+        if (!error && data) {
+          // Swap the temp id for the real DB id
+          setHistory(prev => prev.map(h => h.id === newRecord.id ? { ...h, id: data.id } : h));
+        } else if (error) {
+          console.warn('finance save failed:', error.message);
+        }
+      } catch (e) { console.warn('finance save error', e); }
+    }
   };
 
   const handleMoveToMember = async (friend: Member) => {
@@ -310,8 +353,9 @@ export default function Tools() {
     }
   };
 
-  // If not manager, don't show the tools or show access denied
-  if (mode !== 'Manager') {
+  // Managers get the full tools; Staff get the finance count only; Members are blocked.
+  const financeOnly = mode !== 'Manager'; // Staff
+  if (mode !== 'Manager' && mode !== 'Staff') {
     return (
       <div className="flex w-full h-full items-center justify-center bg-surface">
         <div className="text-center p-8 rounded-3xl bg-surface-container-low max-w-sm">
@@ -328,9 +372,9 @@ export default function Tools() {
       {/* Header */}
       <div className="p-6 md:p-8 flex flex-col gap-4 border-b border-outline-variant/10 bg-surface">
         <div>
-          <h2 className="mb-2 font-headline-md text-on-surface">{isZh ? '管理工具' : 'Management Tools'}</h2>
+          <h2 className="mb-2 font-headline-md text-on-surface">{financeOnly ? (isZh ? '财务点收' : 'Finance Count') : (isZh ? '管理工具' : 'Management Tools')}</h2>
           <p className="font-label-sm text-sm text-on-surface-variant uppercase tracking-widest opacity-70">
-            {isZh ? '财务、新朋友及人员分类' : 'Finances, Newcomers & Member Categorization'}
+            {financeOnly ? (isZh ? '数钱点收（与管理员同步）' : 'Cash counting (synced with managers)') : (isZh ? '财务、新朋友及人员分类' : 'Finances, Newcomers & Member Categorization')}
           </p>
         </div>
 
@@ -346,6 +390,7 @@ export default function Tools() {
             <span className="material-symbols-outlined text-[18px]">payments</span>
             {isZh ? '财务点收 (数钱)' : 'Finances / Giving'}
           </button>
+          {!financeOnly && (<>
           <button
             onClick={() => setActiveTab('newcomers')}
             className={`px-6 py-3 rounded-2xl font-bold transition-all flex items-center gap-2 ${
@@ -368,6 +413,7 @@ export default function Tools() {
             <span className="material-symbols-outlined text-[18px]">tune</span>
             {isZh ? '功能权限' : 'Feature Permissions'}
           </button>
+          </>)}
         </div>
       </div>
 

@@ -223,6 +223,11 @@ export default function Layout() {
       ? allStaffItems.filter(i => !staffExclude.includes(i.path))
       : allStaffItems;
 
+    // Staff get the finance-count tool (synced with managers), but not the rest of Tools.
+    if (mode === 'Staff') {
+      items.push({ icon: 'payments', label: isZh ? '财务点收' : 'Finance Count', path: '/app/tools' });
+    }
+
     if (mode === 'Manager') {
       items.splice(1, 0, { icon: 'smart_toy', label: 'Grace Assistant', path: '/app/ai' });
       items.splice(2, 0, { icon: 'how_to_reg', label: language.startsWith('zh') ? '成员审核' : 'Approvals', path: '/app/approvals' });
