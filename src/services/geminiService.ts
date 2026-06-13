@@ -124,12 +124,40 @@ export const askGraceAI = async (prompt: string, context: string = "", language:
 export async function translateLyrics(text: string, targetLang: string): Promise<string> {
   const langMap: Record<string, string> = { en: 'English', zh: 'Simplified Chinese', 'zh-CN': 'Simplified Chinese', 'zh-TW': 'Traditional Chinese', ko: 'Korean', ja: 'Japanese' };
   const target = langMap[targetLang] || 'English';
+
+  // Number every line so the model is forced to translate EACH one and we can realign
+  // its output by number — this fixes "only the first part got translated" and the
+  // mismatched line-pairing in the slides.
+  const srcLines = text.split('\n');
+  const numbered = srcLines.map((l, i) => `${i + 1}. ${l.trim() || '∅'}`).join('\n');
+
   try {
     const result = await nvidiaChat([
-      { role: 'system', content: `You are a lyrics translator. Translate song lyrics to ${target}. Keep line breaks exactly as-is. Return ONLY the translated lyrics, no explanation.` },
-      { role: 'user', content: text },
+      {
+        role: 'system',
+        content:
+          `You translate Christian worship song lyrics into natural, singable ${target}. ` +
+          `The input is numbered, one line per number. Translate EVERY single line — never skip, merge, summarize, or stop early. ` +
+          `Output the SAME count of lines, each prefixed with its number and a period, e.g. "1. ...". ` +
+          `If an input line is "∅" it is blank: output just the number, period, nothing else. ` +
+          `Use accurate, reverent Christian terminology. Output ONLY the numbered translation, no notes.`,
+      },
+      { role: 'user', content: numbered },
     ]);
-    return result.trim() || text;
+
+    // Realign by line number; fall back to the source line if a number is missing.
+    const map = new Map<number, string>();
+    for (const raw of result.split('\n')) {
+      const m = raw.match(/^\s*(\d+)\s*[.、:：)）]\s?(.*)$/);
+      if (m) map.set(parseInt(m[1], 10), (m[2] || '').trim());
+    }
+    if (map.size === 0) return result.trim() || text; // model ignored numbering — use raw
+    const aligned = srcLines.map((l, i) => {
+      if (!l.trim()) return '';
+      const v = map.get(i + 1);
+      return v && v !== '∅' ? v : '';
+    });
+    return aligned.join('\n');
   } catch {
     return text;
   }

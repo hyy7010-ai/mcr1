@@ -72,6 +72,41 @@ const INITIAL_LIBRARY: Song[] = [
   }
 ];
 
+// Remove duplicate paragraphs/lines that worship lyrics often repeat back-to-back.
+// 1) collapse immediately-repeated single lines, 2) collapse immediately-repeated
+// 2–8 line blocks (e.g. a verse pasted twice in a row).
+function dedupeLyrics(text: string): string {
+  if (!text) return text;
+  let lines = text.split('\n');
+
+  // collapse consecutive identical (non-empty) lines
+  const single: string[] = [];
+  for (const line of lines) {
+    const t = line.trim();
+    const prev = single.length ? single[single.length - 1].trim() : null;
+    if (t && t === prev) continue;
+    single.push(line);
+  }
+  lines = single;
+
+  // collapse a block of N lines immediately repeated (largest blocks first)
+  for (let size = 8; size >= 2; size--) {
+    let i = 0;
+    while (i + 2 * size <= lines.length) {
+      const a = lines.slice(i, i + size).map(l => l.trim()).join('\n');
+      const b = lines.slice(i + size, i + 2 * size).map(l => l.trim()).join('\n');
+      if (a && a === b) {
+        lines.splice(i + size, size); // drop the repeat
+      } else {
+        i++;
+      }
+    }
+  }
+
+  // collapse 3+ blank lines down to a single blank
+  return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
 export default function Songs() {
   const { mode } = useMode();
   const { t, isZh, language } = useLanguage();
@@ -492,7 +527,7 @@ export default function Songs() {
     setIsFetchingLyrics(true);
     try {
       const data = await fetchSongFromUrl(newSongUrl);
-      const extractedLyrics = data.lyrics || '';
+      const extractedLyrics = dedupeLyrics(data.lyrics || ''); // auto-remove repeated paragraphs
       setNewSongData({
         ...newSongData,
         title: data.title || '',
@@ -643,7 +678,7 @@ export default function Songs() {
         const titleIdx = lines.findIndex(l => l.trim());
         if (titleIdx === -1) return null;
         const title = lines[titleIdx].trim();
-        const lyrics = lines.slice(titleIdx + 1).join('\n').trim();
+        const lyrics = dedupeLyrics(lines.slice(titleIdx + 1).join('\n').trim());
         return lyrics ? { title, lyrics } : null;
       })
       .filter(Boolean) as { title: string; lyrics: string }[];
@@ -1687,10 +1722,27 @@ export default function Songs() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-[9px] font-black uppercase tracking-widest text-outline ml-1">
-                    {t('chineseLyrics')}
+                  <label className="text-[9px] font-black uppercase tracking-widest text-outline ml-1 flex items-center justify-between gap-2">
+                    <span>{t('chineseLyrics')}</span>
+                    <span className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => { const c = dedupeLyrics(tempLyrics); setTempLyrics(c); handleRealtimeTranslate(c); }}
+                        className="px-2 py-1 rounded-lg bg-white border border-outline-variant/30 text-[9px] font-black text-on-surface hover:border-emerald-500 hover:text-emerald-600 transition-all flex items-center gap-1"
+                      >
+                        <span className="material-symbols-outlined text-[12px]">filter_list_off</span>{isZh ? '去重复' : 'Dedupe'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRealtimeTranslate(tempLyrics)}
+                        disabled={translating}
+                        className="px-2 py-1 rounded-lg bg-[#4F46E5] text-white text-[9px] font-black hover:bg-[#4338CA] transition-all disabled:opacity-50 flex items-center gap-1"
+                      >
+                        <span className="material-symbols-outlined text-[12px]">{translating ? 'hourglass_top' : 'translate'}</span>{translating ? (isZh ? '翻译中' : '...') : (isZh ? '重新翻译' : 'Translate')}
+                      </button>
+                    </span>
                   </label>
-                  <textarea 
+                  <textarea
                     value={tempLyrics}
                     onChange={(e) => {
                       setTempLyrics(e.target.value);
@@ -1769,7 +1821,8 @@ export default function Songs() {
                 {/* Left Side: Preview Slides */}
                 <div className="flex-1 p-10 bg-[#F9F7F5] overflow-y-auto no-scrollbar border-r border-[#E5E0DA]/50">
                     <div className="grid grid-cols-1 gap-8">
-                      {/* Slide 1 - Cover */}
+                      {/* Slide 1 - Cover (only when "with title" is selected) */}
+                      {showSongTitle && (
                       <div
                         className="rounded-3xl p-8 flex flex-col items-center justify-center text-center shadow-xl relative group overflow-hidden"
                         style={{
@@ -1797,7 +1850,8 @@ export default function Songs() {
                            {previewingSong.customBg && <span className="text-[8px] px-2 py-0.5 rounded-full bg-emerald-500/80 text-white font-black uppercase">{t('independentBg')}</span>}
                         </div>
                       </div>
-                      
+                      )}
+
                       {/* Lyrics Slide Preview */}
                       {Array.from({ length: Math.ceil((previewingSong.lyrics?.split('\n').filter((l: string) => l.trim()).length || 0) / linesPerSlide) }).map((_, slideIndex) => (
                         <div
