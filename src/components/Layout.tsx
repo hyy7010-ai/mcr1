@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { isSuperAdmin, canManageChurch, canDoStaff, isDemoChurch, getActiveChurchId } from '../lib/permissions';
 import { socialService, AppNotification } from '../services/socialService';
+import { canSeeModule } from '../lib/featureModules';
 import OnboardingModal, { needsOnboarding } from './OnboardingModal';
 
 export default function Layout() {
@@ -234,7 +235,10 @@ export default function Layout() {
       items.push({ icon: 'admin_panel_settings', label: isZh ? '平台管理控制台' : 'Platform Console', path: '/app/super-admin' });
     }
 
-    return items;
+    // Apply the church's feature switches + per-role visibility.
+    // Platform admins always see everything; core admin items are never in the config.
+    const featureConfig = (church as any)?.feature_config || {};
+    return items.filter(item => isPlatformAdmin || canSeeModule(featureConfig, item.path, mode));
   };
 
   const navItems = getNavItems();
@@ -594,7 +598,16 @@ export default function Layout() {
 
         {/* Page Content */}
         <div className="flex-1 overflow-auto w-full min-h-0 bg-surface">
-            <Outlet />
+            {!isPlatformAdmin && !canSeeModule((church as any)?.feature_config || {}, location.pathname, mode) ? (
+              <div className="h-full flex flex-col items-center justify-center text-center p-8 gap-3">
+                <span className="material-symbols-outlined text-6xl text-outline/30">lock</span>
+                <h2 className="text-xl font-bold text-on-surface">{isZh ? '此功能未开放' : 'Feature not available'}</h2>
+                <p className="text-sm text-outline max-w-sm">{isZh ? '管理员尚未对你的角色开放此功能。' : 'A manager has not enabled this feature for your role.'}</p>
+                <button onClick={() => navigate('/app/dashboard')} className="mt-2 px-5 py-2.5 rounded-2xl bg-black text-white text-xs font-black uppercase tracking-widest">{isZh ? '返回仪表盘' : 'Back to dashboard'}</button>
+              </div>
+            ) : (
+              <Outlet />
+            )}
         </div>
       </div>
     </div>

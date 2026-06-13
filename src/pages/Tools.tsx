@@ -6,12 +6,16 @@ import { useMode } from '../contexts/ModeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { memberService, Member } from '../services/memberService';
+import { FEATURE_MODULES, FEATURE_ROLES, FeatureConfig } from '../lib/featureModules';
 
 export default function Tools() {
   const { t, language, isZh } = useLanguage();
   const { mode } = useMode();
   const { church, updateChurch } = useAuth();
-  const [activeTab, setActiveTab] = useState<'finance' | 'newcomers'>('finance');
+  const [activeTab, setActiveTab] = useState<'finance' | 'newcomers' | 'features'>('finance');
+  const [featureCfg, setFeatureCfg] = useState<FeatureConfig>(() => (church as any)?.feature_config || {});
+  const [savingFeatures, setSavingFeatures] = useState(false);
+  const [featuresSaved, setFeaturesSaved] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showNewFriendModal, setShowNewFriendModal] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<any>(null);
@@ -75,6 +79,45 @@ export default function Tools() {
       alert((isZh ? '上传失败: ' : 'Upload failed: ') + (err.message || 'Unknown error'));
     } finally {
       setUpdatingLogo(false);
+    }
+  };
+
+  // ── Feature permissions ──────────────────────────────────────────────────
+  // A module not in the config is "on for everyone". Toggling/role-editing
+  // writes an explicit entry. Default roles = all three when first restricted.
+  const featAt = (key: string) => featureCfg[key] || { enabled: true, roles: [...FEATURE_ROLES] };
+
+  const toggleModule = (key: string) => {
+    setFeaturesSaved(false);
+    setFeatureCfg(prev => {
+      const cur = prev[key] || { enabled: true, roles: [...FEATURE_ROLES] };
+      return { ...prev, [key]: { ...cur, enabled: !(cur.enabled !== false) } };
+    });
+  };
+
+  const toggleRole = (key: string, role: string) => {
+    setFeaturesSaved(false);
+    setFeatureCfg(prev => {
+      const cur = prev[key] || { enabled: true, roles: [...FEATURE_ROLES] };
+      const roles = cur.roles && cur.roles.length ? cur.roles : [...FEATURE_ROLES];
+      const next = roles.includes(role) ? roles.filter(r => r !== role) : [...roles, role];
+      return { ...prev, [key]: { ...cur, roles: next } };
+    });
+  };
+
+  const saveFeatures = async () => {
+    if (!church?.id) return;
+    setSavingFeatures(true);
+    try {
+      const { error } = await supabase.from('churches').update({ feature_config: featureCfg }).eq('id', church.id);
+      if (error) throw error;
+      updateChurch({ feature_config: featureCfg });
+      setFeaturesSaved(true);
+      setTimeout(() => setFeaturesSaved(false), 2500);
+    } catch (err: any) {
+      alert((isZh ? '保存失败：' : 'Save failed: ') + (err.message || 'Unknown error'));
+    } finally {
+      setSavingFeatures(false);
     }
   };
 
@@ -314,6 +357,17 @@ export default function Tools() {
             <span className="material-symbols-outlined text-[18px]">group_add</span>
             {isZh ? '新朋友 & 人员分类' : 'Newcomers & Assignment'}
           </button>
+          <button
+            onClick={() => setActiveTab('features')}
+            className={`px-6 py-3 rounded-2xl font-bold transition-all flex items-center gap-2 ${
+              activeTab === 'features'
+                ? 'bg-black text-white shadow-lg'
+                : 'bg-surface-container-low text-on-surface hover:bg-surface-container'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[18px]">tune</span>
+            {isZh ? '功能权限' : 'Feature Permissions'}
+          </button>
         </div>
       </div>
 
@@ -533,6 +587,92 @@ export default function Tools() {
                   </table>
                 </div>
               </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'features' && (
+            <motion.div
+              key="features"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="max-w-3xl"
+            >
+              <div className="flex items-start justify-between gap-4 mb-6">
+                <div>
+                  <h3 className="font-serif font-black text-2xl text-on-surface">{isZh ? '功能权限' : 'Feature Permissions'}</h3>
+                  <p className="text-sm text-on-surface-variant mt-1">
+                    {isZh ? '开关每个功能，并勾选哪些角色能在菜单里看到它。' : 'Turn each feature on/off and choose which roles can see it in the menu.'}
+                  </p>
+                </div>
+                <button
+                  onClick={saveFeatures}
+                  disabled={savingFeatures}
+                  className="shrink-0 px-6 py-3 rounded-2xl bg-black text-white font-black text-xs uppercase tracking-widest flex items-center gap-2 hover:bg-emerald-600 transition-all disabled:opacity-50"
+                >
+                  {savingFeatures
+                    ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    : <span className="material-symbols-outlined text-[18px]">{featuresSaved ? 'check' : 'save'}</span>}
+                  {featuresSaved ? (isZh ? '已保存' : 'Saved') : (isZh ? '保存' : 'Save')}
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {FEATURE_MODULES.map(m => {
+                  const cfg = featAt(m.key);
+                  const on = cfg.enabled !== false;
+                  const roles = cfg.roles && cfg.roles.length ? cfg.roles : [...FEATURE_ROLES];
+                  return (
+                    <div key={m.key} className={`rounded-3xl border p-5 transition-all ${on ? 'bg-white border-outline-variant/15 shadow-sm' : 'bg-surface-container-low border-outline-variant/10 opacity-70'}`}>
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${on ? 'bg-primary/[0.06] text-primary' : 'bg-surface-container text-outline'}`}>
+                            <span className="material-symbols-outlined text-[20px]">{m.icon}</span>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-bold text-on-surface truncate">{isZh ? m.zh : m.en}</p>
+                            <p className="text-[11px] text-outline">{isZh ? (on ? '已开启' : '已关闭') : (on ? 'Enabled' : 'Disabled')}</p>
+                          </div>
+                        </div>
+                        {/* on/off switch */}
+                        <button
+                          onClick={() => toggleModule(m.key)}
+                          aria-label="toggle"
+                          className={`relative w-12 h-7 rounded-full transition-colors shrink-0 ${on ? 'bg-emerald-500' : 'bg-outline-variant'}`}
+                        >
+                          <span className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow transition-all ${on ? 'left-6' : 'left-1'}`} />
+                        </button>
+                      </div>
+
+                      {/* role visibility */}
+                      {on && (
+                        <div className="flex flex-wrap items-center gap-2 mt-4">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-outline mr-1">{isZh ? '谁能看：' : 'Visible to:'}</span>
+                          {FEATURE_ROLES.map(r => {
+                            const checked = roles.includes(r);
+                            const labelZh: any = { Manager: '管理员', Staff: '同工', Member: '会友' };
+                            return (
+                              <button
+                                key={r}
+                                onClick={() => toggleRole(m.key, r)}
+                                className={`px-3 py-1.5 rounded-full text-[11px] font-black border transition-all flex items-center gap-1 ${checked ? 'bg-primary/5 border-primary/30 text-primary' : 'bg-surface-container-low border-transparent text-outline hover:bg-surface-container'}`}
+                              >
+                                <span className="material-symbols-outlined text-[14px]">{checked ? 'check_circle' : 'radio_button_unchecked'}</span>
+                                {isZh ? labelZh[r] : r}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-[11px] text-outline mt-5">
+                {isZh
+                  ? '注：超级管理员始终可见全部；仪表盘、成员审核、管理工具等核心入口不受此限制。'
+                  : 'Note: Super admins always see everything; core items (Dashboard, Approvals, Tools) are not affected.'}
+              </p>
             </motion.div>
           )}
 
