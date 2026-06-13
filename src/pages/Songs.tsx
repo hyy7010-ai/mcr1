@@ -93,6 +93,8 @@ export default function Songs() {
     // For demo/super-admin with no real church, INITIAL_LIBRARY is already the default state
   }, [activeChurchId]);
 
+  const songsCacheKey = () => `songs_cache_${activeChurchId}`;
+
   const fetchSongs = async () => {
     if (!activeChurchId || isDemoChurch(church)) return;
     setIsLoading(true);
@@ -104,7 +106,7 @@ export default function Songs() {
         .order('title', { ascending: true });
 
       if (error) throw error;
-      
+
       const supSongs = (data || []).map(s => ({
         ...s,
         englishTitle: s.english_title || s.title,
@@ -112,12 +114,24 @@ export default function Songs() {
         pages: s.pages || Math.ceil((s.lyrics?.split('\n').filter((l: string) => l.trim()).length || 1) / 2) + 1
       }));
 
+      // Cache the church's real songs so a later slow/failed read never shows blanks.
+      try { localStorage.setItem(songsCacheKey(), JSON.stringify(supSongs)); } catch {}
+
       // Always merge Supabase songs with INITIAL_LIBRARY so all users see the default songs
       const existingIds = new Set(supSongs.map(s => s.id));
       const merged = [...supSongs, ...INITIAL_LIBRARY.filter(s => !existingIds.has(s.id))];
       setLibrarySongs(merged);
     } catch (err) {
       console.error('Error fetching songs:', err);
+      // Resilience: on a failed/timed-out read, fall back to the last cached songs
+      // (plus defaults) instead of dropping to defaults-only — that looked like "they vanished".
+      try {
+        const cached = JSON.parse(localStorage.getItem(songsCacheKey()) || '[]');
+        if (cached.length) {
+          const ids = new Set(cached.map((s: any) => s.id));
+          setLibrarySongs([...cached, ...INITIAL_LIBRARY.filter(s => !ids.has(s.id))]);
+        }
+      } catch {}
     } finally {
       setIsLoading(false);
     }
