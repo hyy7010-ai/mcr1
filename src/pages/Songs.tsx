@@ -288,6 +288,11 @@ export default function Songs() {
   const [translationFontSize, setTranslationFontSize] = useState(24);
   // Whether slide text gets a drop shadow (user-toggleable)
   const [enableShadow, setEnableShadow] = useState(true);
+  // Export-wide overrides: when ON, every song uses the GLOBAL font size /
+  // background and any per-song customisation is ignored, so the whole deck
+  // looks uniform.
+  const [unifyFontSize, setUnifyFontSize] = useState(false);
+  const [unifyBackground, setUnifyBackground] = useState(false);
 
   // Church-specific localStorage keys — data is fully isolated per church
   const churchKey = (base: string) => `${base}_${activeChurchId || 'demo'}`;
@@ -313,6 +318,13 @@ export default function Songs() {
       const s = localStorage.getItem(churchKey('ppt_shadow'));
       if (s !== null) setEnableShadow(s === 'true');
     } catch {}
+    // Restore the "unify font size / background" export preferences.
+    try {
+      const uf = localStorage.getItem(churchKey('ppt_unify_font'));
+      if (uf !== null) setUnifyFontSize(uf === 'true');
+      const ub = localStorage.getItem(churchKey('ppt_unify_bg'));
+      if (ub !== null) setUnifyBackground(ub === 'true');
+    } catch {}
   }, [activeChurchId]);
 
   // Persist uploaded backgrounds so they survive reloads (per church).
@@ -324,6 +336,14 @@ export default function Songs() {
   useEffect(() => {
     try { localStorage.setItem(churchKey('ppt_shadow'), String(enableShadow)); } catch {}
   }, [enableShadow, activeChurchId]);
+
+  // Persist the unify-font / unify-background export preferences.
+  useEffect(() => {
+    try {
+      localStorage.setItem(churchKey('ppt_unify_font'), String(unifyFontSize));
+      localStorage.setItem(churchKey('ppt_unify_bg'), String(unifyBackground));
+    } catch {}
+  }, [unifyFontSize, unifyBackground, activeChurchId]);
 
   // Save one song's PPT settings to the per-song Ready PPT library (church-isolated)
   const saveToReadyPPT = (song: Song, bg: any) => {
@@ -385,7 +405,7 @@ export default function Songs() {
   const fetchImageAsBase64 = async (url: string): Promise<string | null> => {
     if (!url || url.startsWith('data:')) return url || null;
     try {
-      const response = await fetch(url, { signal: AbortSignal.timeout(15000) });
+      const response = await fetch(url, { signal: AbortSignal.timeout(30000) });
       const blob = await response.blob();
       return await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
@@ -833,12 +853,15 @@ export default function Songs() {
       const generatePPT = async (songsToExport: any[], finalName: string, isSingle: boolean = false) => {
         let pres = new pptxgen();
         pres.layout = 'LAYOUT_16x9';
+        // Set true if any background image couldn't be embedded; used to warn
+        // the user instead of silently shipping solid-colour slides.
+        let bgEmbedFailed = false;
 
         // Pre-fetch all background images as base64 to ensure they embed properly
         const bgUrlCache = new Map<string, string>();
         const urlsToFetch = new Set<string>();
         songsToExport.forEach(song => {
-          const bg = song.customBg || selectedBg;
+          const bg = unifyBackground ? selectedBg : (song.customBg || selectedBg);
           if (bg?.url && !bg.url.startsWith('data:')) urlsToFetch.add(bg.url);
         });
         await Promise.all(Array.from(urlsToFetch).map(async (url) => {
@@ -847,7 +870,8 @@ export default function Songs() {
         }));
 
         const generateSongSlides = (song: any, isMultiple: boolean) => {
-          const activeBg = song.customBg || selectedBg;
+          // When "unify background" is on, every song uses the global background.
+          const activeBg = unifyBackground ? selectedBg : (song.customBg || selectedBg);
           // Auto-adapt text color to the background and decide if we need a dark
           // readability overlay (matches the on-screen preview exactly).
           const userLc = song.lyricColor || lyricColor;
@@ -856,8 +880,9 @@ export default function Songs() {
           const lc = colors.lc.replace('#', '');
           const tc = colors.tc.replace('#', '');
           const lps = song.linesPerSlide || linesPerSlide;
-          const lfs = song.lyricFontSize || lyricFontSize;
-          const tfs = song.translationFontSize || translationFontSize;
+          // When "unify font size" is on, every song uses the global font sizes.
+          const lfs = unifyFontSize ? lyricFontSize : (song.lyricFontSize || lyricFontSize);
+          const tfs = unifyFontSize ? translationFontSize : (song.translationFontSize || translationFontSize);
           // Respect the per-song saved shadow flag, falling back to the global toggle.
           const shadowOn = song.shadow !== undefined ? song.shadow : enableShadow;
           const textShadow = shadowOn ? PPT_TEXT_SHADOW : undefined;
@@ -872,7 +897,13 @@ export default function Songs() {
               } else if (activeBg.url.startsWith('data:')) {
                 s.background = { data: activeBg.url };
               } else {
-                s.background = { path: activeBg.url.split('?')[0] };
+                // The image couldn't be embedded as base64 (CORS / timeout /
+                // network). Do NOT hand the raw URL to pptxgenjs via { path } —
+                // it will try to fetch it during write() and throw, killing the
+                // entire export. Fall back to a solid colour so the file still
+                // generates, and remember it so we can warn the user.
+                bgEmbedFailed = true;
+                s.background = { color: activeBg?.color || "064E3B" };
               }
             } else {
               s.background = { color: activeBg?.color || "064E3B" };
@@ -1001,19 +1032,30 @@ export default function Songs() {
             console.warn('PPT library sync failed (non-critical):', syncErr);
           }
         }
+        return bgEmbedFailed;
       };
 
       const exportSongs = songsOverride || weeklySetlist;
 
       // Handle the main download
+      let bgFailed = false;
       if (previewingSong && fileName === `${previewingSong.title}.pptx`) {
-        await generatePPT([previewingSong], targetFileName, true);
+        bgFailed = await generatePPT([previewingSong], targetFileName, true);
       } else {
-        await generatePPT(exportSongs, targetFileName);
+        bgFailed = await generatePPT(exportSongs, targetFileName);
       }
 
-      setDownloadStatus(`✅ ${t('successfullySaved')}: ${targetFileName}`);
-      setTimeout(() => setDownloadStatus(null), 3500);
+      if (bgFailed) {
+        // The file still exported — just warn that some backgrounds fell back
+        // to a solid colour so the user isn't surprised.
+        setDownloadStatus(isZh
+          ? '⚠️ 部分背景图无法加载，已用纯色代替（文件已导出）'
+          : '⚠️ Some backgrounds could not load; solid colour used (file exported)');
+        setTimeout(() => setDownloadStatus(null), 5000);
+      } else {
+        setDownloadStatus(`✅ ${t('successfullySaved')}: ${targetFileName}`);
+        setTimeout(() => setDownloadStatus(null), 3500);
+      }
 
     } catch (err) {
       console.error("Critical download error:", err);
@@ -1548,6 +1590,37 @@ export default function Songs() {
                         <p className="text-[10px] font-bold text-outline/40 uppercase tracking-[0.2em] leading-relaxed">
                           {t('lyricOptimization')} · {t('perSlide')} {linesPerSlide} {t('pairsPerSlide')} · {t('themeInjected')}
                         </p>
+                      </div>
+
+                      {/* Export-wide uniformity toggles: force every song to use
+                          the same font size / background, ignoring per-song tweaks. */}
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setUnifyFontSize(v => !v)}
+                          className={`flex-1 flex items-center justify-between px-4 py-3 rounded-2xl border transition-all ${unifyFontSize ? 'bg-emerald-50 border-emerald-500/40' : 'bg-[#F9F7F5] border-[#E5E0DA]/40 hover:border-emerald-500/30'}`}
+                        >
+                          <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-outline/60">
+                            <span className="material-symbols-outlined text-[16px]">format_size</span>
+                            {isZh ? '统一字号' : 'Unify Font Size'}
+                          </span>
+                          <span className={`relative w-10 h-5 rounded-full transition-all shrink-0 ${unifyFontSize ? 'bg-emerald-500' : 'bg-neutral-300'}`}>
+                            <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${unifyFontSize ? 'right-0.5' : 'left-0.5'}`}></span>
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setUnifyBackground(v => !v)}
+                          className={`flex-1 flex items-center justify-between px-4 py-3 rounded-2xl border transition-all ${unifyBackground ? 'bg-emerald-50 border-emerald-500/40' : 'bg-[#F9F7F5] border-[#E5E0DA]/40 hover:border-emerald-500/30'}`}
+                        >
+                          <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-outline/60">
+                            <span className="material-symbols-outlined text-[16px]">wallpaper</span>
+                            {isZh ? '统一背景' : 'Same Background'}
+                          </span>
+                          <span className={`relative w-10 h-5 rounded-full transition-all shrink-0 ${unifyBackground ? 'bg-emerald-500' : 'bg-neutral-300'}`}>
+                            <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${unifyBackground ? 'right-0.5' : 'left-0.5'}`}></span>
+                          </span>
+                        </button>
                       </div>
 
                       <div className="flex flex-col gap-3 w-full">
