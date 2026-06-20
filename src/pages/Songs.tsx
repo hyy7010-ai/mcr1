@@ -2066,21 +2066,6 @@ export default function Songs() {
                                 <span className="text-[9px] font-black text-outline/60 uppercase">{t('uploadImage')}</span>
                                 <input type="file" className="hidden" accept="image/*" onChange={handleFileUpload} />
                             </label>
-
-                            {/* Text shadow on/off */}
-                            <button
-                              type="button"
-                              onClick={() => setEnableShadow(v => !v)}
-                              className="mt-3 w-full flex items-center justify-between px-4 py-3 rounded-xl bg-[#F9F7F5] border border-[#E5E0DA]/40 hover:border-emerald-500/40 transition-all"
-                            >
-                              <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-outline/60">
-                                <span className="material-symbols-outlined text-[16px]">format_color_text</span>
-                                {isZh ? '文字阴影' : 'Text Shadow'}
-                              </span>
-                              <span className={`relative w-10 h-5 rounded-full transition-all ${enableShadow ? 'bg-emerald-500' : 'bg-neutral-300'}`}>
-                                <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${enableShadow ? 'right-0.5' : 'left-0.5'}`}></span>
-                              </span>
-                            </button>
                         </div>
                      </div>
                    ) : (
@@ -2098,6 +2083,15 @@ export default function Songs() {
                                   if (updatedPreviewSong) setPreviewingSong(updatedPreviewSong);
                                   scheduleTranslate(newVal);
                                 }}
+                                onBlur={(e) => {
+                                  // Auto-remove blank lines when leaving the field.
+                                  const cleaned = stripBlankLines(e.target.value);
+                                  if (cleaned === previewingSong.lyrics) return;
+                                  const updatedWeekly = weeklySetlist.map(s => s.id === previewingSong.id ? { ...s, lyrics: cleaned } : s);
+                                  setWeeklySetlist(updatedWeekly);
+                                  const updatedPreviewSong = updatedWeekly.find(s => s.id === previewingSong.id);
+                                  if (updatedPreviewSong) setPreviewingSong(updatedPreviewSong);
+                                }}
                                 className="w-full h-32 p-4 rounded-xl bg-[#F9F7F5] border-none outline-none text-xs resize-none leading-relaxed font-sans focus:ring-2 focus:ring-emerald-500/20 transition-all"
                                 placeholder={t('enterLyricsPlaceholder')}
                               />
@@ -2112,6 +2106,14 @@ export default function Songs() {
                                 onChange={(e) => {
                                   const newVal = e.target.value;
                                   const updatedWeekly = weeklySetlist.map(s => s.id === previewingSong.id ? { ...s, englishLyrics: newVal } : s);
+                                  setWeeklySetlist(updatedWeekly);
+                                  const updatedPreviewSong = updatedWeekly.find(s => s.id === previewingSong.id);
+                                  if (updatedPreviewSong) setPreviewingSong(updatedPreviewSong);
+                                }}
+                                onBlur={(e) => {
+                                  const cleaned = stripBlankLines(e.target.value);
+                                  if (cleaned === previewingSong.englishLyrics) return;
+                                  const updatedWeekly = weeklySetlist.map(s => s.id === previewingSong.id ? { ...s, englishLyrics: cleaned } : s);
                                   setWeeklySetlist(updatedWeekly);
                                   const updatedPreviewSong = updatedWeekly.find(s => s.id === previewingSong.id);
                                   if (updatedPreviewSong) setPreviewingSong(updatedPreviewSong);
@@ -2188,6 +2190,38 @@ export default function Songs() {
                                </div>
                              </div>
                            </div>
+
+                           {/* Text shadow on/off */}
+                           <button
+                             type="button"
+                             onClick={() => setEnableShadow(v => !v)}
+                             className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-[#F9F7F5] border border-[#E5E0DA]/40 hover:border-emerald-500/40 transition-all"
+                           >
+                             <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-outline/60">
+                               <span className="material-symbols-outlined text-[16px]">format_color_text</span>
+                               {isZh ? '文字阴影' : 'Text Shadow'}
+                             </span>
+                             <span className={`relative w-10 h-5 rounded-full transition-all ${enableShadow ? 'bg-emerald-500' : 'bg-neutral-300'}`}>
+                               <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${enableShadow ? 'right-0.5' : 'left-0.5'}`}></span>
+                             </span>
+                           </button>
+
+                           {/* Remove blank lines instantly */}
+                           <button
+                             type="button"
+                             onClick={() => {
+                               const cleaned = stripBlankLines(previewingSong.lyrics || '');
+                               const cleanedEn = stripBlankLines(previewingSong.englishLyrics || '');
+                               const updatedWeekly = weeklySetlist.map(s => s.id === previewingSong.id ? { ...s, lyrics: cleaned, englishLyrics: cleanedEn } : s);
+                               setWeeklySetlist(updatedWeekly);
+                               const updatedPreviewSong = updatedWeekly.find(s => s.id === previewingSong.id);
+                               if (updatedPreviewSong) setPreviewingSong(updatedPreviewSong);
+                             }}
+                             className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-[#E5E0DA]/50 text-[10px] font-black uppercase tracking-widest text-outline/60 hover:border-emerald-500/40 hover:text-emerald-600 transition-all"
+                           >
+                             <span className="material-symbols-outlined text-[16px]">filter_list_off</span>
+                             {isZh ? '去除空行' : 'Remove Blank Lines'}
+                           </button>
 
                            <button
                              onClick={() => handleUpdateSong(previewingSong)}
