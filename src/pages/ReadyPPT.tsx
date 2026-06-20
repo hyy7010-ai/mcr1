@@ -383,6 +383,9 @@ export default function ReadyPPT() {
             const songLc = colors.lc.replace('#', '');
             const songTc = colors.tc.replace('#', '');
             const songLps = song.linesPerSlide || lps;
+            // Honor the saved shadow on/off preference (default on for older entries).
+            const shadowOn = song.shadow !== undefined ? song.shadow : (sd.shadow !== undefined ? sd.shadow : true);
+            const textShadow = shadowOn ? PPT_TEXT_SHADOW : undefined;
             const setSlideBg = makeSlideBg(activeBg, colors.overlay);
 
             // Song separator slide (if multiple songs)
@@ -395,7 +398,7 @@ export default function ReadyPPT() {
               sep.addText(song.title || '', {
                 x: 0, y: 2.2, w: "100%", h: 1.5,
                 align: "center", fontFace: titleFont, fontSize: 64, color: "FFFFFF", bold: true,
-                shadow: PPT_TEXT_SHADOW
+                shadow: textShadow
               });
               sep.addShape(pres.ShapeType.rect, { x: 4.25, y: 4.2, w: 1.5, h: 0.05, fill: { color: "A7F3D0" } });
             }
@@ -406,13 +409,13 @@ export default function ReadyPPT() {
             cover.addText(song.title || item.name, {
               x: 0, y: 1.5, w: "100%", h: 2,
               align: "center", fontFace: titleFont, fontSize: 48, color: songLc, bold: true,
-              shadow: PPT_TEXT_SHADOW
+              shadow: textShadow
             });
             if (song.englishTitle) {
               cover.addText(song.englishTitle, {
                 x: 0, y: 3.5, w: "100%", h: 1,
                 align: "center", fontFace: bodyFont, fontSize: 24, color: songTc,
-                shadow: PPT_TEXT_SHADOW
+                shadow: textShadow
               });
             }
 
@@ -429,14 +432,14 @@ export default function ReadyPPT() {
                   lSlide.addText(lyricsLines[idx], {
                     x: 0, y: currentY, w: "100%", h: 0.8,
                     align: "center", fontFace: titleFont, fontSize: 36, color: songLc, bold: true,
-                    shadow: PPT_TEXT_SHADOW
+                    shadow: textShadow
                   });
                   currentY += 0.8;
                   if (englishLines[idx]) {
                     lSlide.addText(englishLines[idx], {
                       x: 0, y: currentY, w: "100%", h: 0.6,
                       align: "center", fontFace: bodyFont, fontSize: 24, color: songTc, italic: true,
-                      shadow: PPT_TEXT_SHADOW
+                      shadow: textShadow
                     });
                     currentY += 0.8;
                   }
@@ -808,6 +811,8 @@ export default function ReadyPPT() {
                            const songLc = pc.lc;
                            const songTc = pc.tc;
                            const hasImg = !!bg?.url;
+                           const shadowOn = song.shadow !== undefined ? song.shadow : (sd.shadow !== undefined ? sd.shadow : true);
+                           const shadowCss = shadowOn ? PREVIEW_TEXT_SHADOW : 'none';
                            const songLps = song.linesPerSlide || lps;
                            const lyricsLines = (song.lyrics || '').split('\n').filter((l: string) => l.trim());
                            const englishLines = (song.englishLyrics || '').split('\n').filter((l: string) => l.trim());
@@ -829,8 +834,8 @@ export default function ReadyPPT() {
                                      {slide.type === 'cover' ? (
                                        <>
                                          <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: songLc, opacity: 0.6 }}>SLIDE {idx + 1}</p>
-                                         <h2 className="text-4xl font-serif font-black" style={{ color: songLc, textShadow: PREVIEW_TEXT_SHADOW }}>{(slide as any).title}</h2>
-                                         <p className="text-lg font-medium" style={{ color: songTc, textShadow: PREVIEW_TEXT_SHADOW }}>{(slide as any).sub}</p>
+                                         <h2 className="text-4xl font-serif font-black" style={{ color: songLc, textShadow: shadowCss }}>{(slide as any).title}</h2>
+                                         <p className="text-lg font-medium" style={{ color: songTc, textShadow: shadowCss }}>{(slide as any).sub}</p>
                                        </>
                                      ) : (
                                        <>
@@ -839,8 +844,8 @@ export default function ReadyPPT() {
                                            const lineIdx = (slide as any).startIdx + j;
                                            return (
                                              <div key={j}>
-                                               {lyricsLines[lineIdx] && <p className="text-2xl font-serif font-black" style={{ color: songLc, textShadow: PREVIEW_TEXT_SHADOW }}>{lyricsLines[lineIdx]}</p>}
-                                               {englishLines[lineIdx] && <p className="text-sm italic" style={{ color: songTc, textShadow: PREVIEW_TEXT_SHADOW }}>{englishLines[lineIdx]}</p>}
+                                               {lyricsLines[lineIdx] && <p className="text-2xl font-serif font-black" style={{ color: songLc, textShadow: shadowCss }}>{lyricsLines[lineIdx]}</p>}
+                                               {englishLines[lineIdx] && <p className="text-sm italic" style={{ color: songTc, textShadow: shadowCss }}>{englishLines[lineIdx]}</p>}
                                              </div>
                                            );
                                          })}

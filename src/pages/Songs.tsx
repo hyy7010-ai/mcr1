@@ -286,6 +286,8 @@ export default function Songs() {
   const [translationColor, setTranslationColor] = useState('#A7F3D0');
   const [lyricFontSize, setLyricFontSize] = useState(48);
   const [translationFontSize, setTranslationFontSize] = useState(24);
+  // Whether slide text gets a drop shadow (user-toggleable)
+  const [enableShadow, setEnableShadow] = useState(true);
 
   // Church-specific localStorage keys — data is fully isolated per church
   const churchKey = (base: string) => `${base}_${activeChurchId || 'demo'}`;
@@ -301,7 +303,27 @@ export default function Songs() {
       stored.forEach((e: any) => { if (e.songId) map[e.songId] = e; });
       setReadySongPPTs(map);
     } catch { setReadySongPPTs({}); }
+    // Restore previously-uploaded background images so they stay in the library.
+    try {
+      const savedBgs = JSON.parse(localStorage.getItem(churchKey('custom_bgs')) || '[]');
+      if (Array.isArray(savedBgs)) setCustomBgs(savedBgs);
+    } catch { setCustomBgs([]); }
+    // Restore the shadow on/off preference.
+    try {
+      const s = localStorage.getItem(churchKey('ppt_shadow'));
+      if (s !== null) setEnableShadow(s === 'true');
+    } catch {}
   }, [activeChurchId]);
+
+  // Persist uploaded backgrounds so they survive reloads (per church).
+  useEffect(() => {
+    try { localStorage.setItem(churchKey('custom_bgs'), JSON.stringify(customBgs)); } catch {}
+  }, [customBgs, activeChurchId]);
+
+  // Persist the shadow preference.
+  useEffect(() => {
+    try { localStorage.setItem(churchKey('ppt_shadow'), String(enableShadow)); } catch {}
+  }, [enableShadow, activeChurchId]);
 
   // Save one song's PPT settings to the per-song Ready PPT library (church-isolated)
   const saveToReadyPPT = (song: Song, bg: any) => {
@@ -324,7 +346,8 @@ export default function Songs() {
         lyricColor,
         translationColor,
         lyricFontSize,
-        translationFontSize
+        translationFontSize,
+        shadow: enableShadow
       }
     };
     const songKey = churchKey('ready_ppt_songs');
@@ -835,6 +858,9 @@ export default function Songs() {
           const lps = song.linesPerSlide || linesPerSlide;
           const lfs = song.lyricFontSize || lyricFontSize;
           const tfs = song.translationFontSize || translationFontSize;
+          // Respect the per-song saved shadow flag, falling back to the global toggle.
+          const shadowOn = song.shadow !== undefined ? song.shadow : enableShadow;
+          const textShadow = shadowOn ? PPT_TEXT_SHADOW : undefined;
 
           // Sets the slide background AND draws the dark overlay for image
           // backgrounds so text stays readable on bright/busy photos.
@@ -874,7 +900,7 @@ export default function Songs() {
               headerSlide.addText(song.title, {
                 x: 0, y: 2.2, w: "100%", h: 1.5,
                 align: "center", fontFace: titleFont, fontSize: 64, color: "FFFFFF", bold: true,
-                shadow: PPT_TEXT_SHADOW
+                shadow: textShadow
               });
               headerSlide.addShape(pres.ShapeType.rect, { x: 4.25, y: 4.2, w: 1.5, h: 0.05, fill: { color: "A7F3D0" } });
             }
@@ -892,13 +918,13 @@ export default function Songs() {
             slide.addText(song.title, {
               x: 0, y: 1.5, w: "100%", h: 2,
               align: "center", fontFace: titleFont, fontSize: 48, color: lc, bold: true,
-              shadow: PPT_TEXT_SHADOW
+              shadow: textShadow
             });
 
             slide.addText(song.englishTitle || "", {
               x: 0, y: 3.5, w: "100%", h: 1,
               align: "center", fontFace: bodyFont, fontSize: 24, color: tc,
-              shadow: PPT_TEXT_SHADOW
+              shadow: textShadow
             });
           }
 
@@ -919,14 +945,14 @@ export default function Songs() {
                 lSlide.addText(lyricsLines[idx], {
                   x: 0, y: currentY, w: "100%", h: 0.8,
                   align: "center", fontFace: titleFont, fontSize: lyricPt, color: lc, bold: true,
-                  shadow: PPT_TEXT_SHADOW
+                  shadow: textShadow
                 });
                 currentY += 0.8;
                 if (englishLines[idx]) {
                   lSlide.addText(englishLines[idx], {
                     x: 0, y: currentY, w: "100%", h: 0.6,
                     align: "center", fontFace: bodyFont, fontSize: transPt, color: tc, italic: true,
-                    shadow: PPT_TEXT_SHADOW
+                    shadow: textShadow
                   });
                   currentY += 0.8;
                 }
@@ -1554,12 +1580,14 @@ export default function Songs() {
                                 bg: s.customBg || selectedBg,
                                 linesPerSlide,
                                 lyricColor,
-                                translationColor
+                                translationColor,
+                                shadow: enableShadow
                               })),
                               globalBg: selectedBg,
                               linesPerSlide,
                               lyricColor,
-                              translationColor
+                              translationColor,
+                              shadow: enableShadow
                             };
                             const newPpt = {
                               id: `p-${Date.now()}`,
@@ -1871,6 +1899,7 @@ export default function Songs() {
                         const pcBg = previewingSong.customBg || selectedBg;
                         const pc = resolveSlideColors(pcBg, lyricColor, translationColor);
                         const hasImg = !!pcBg?.url;
+                        const shadowCss = enableShadow ? PREVIEW_TEXT_SHADOW : 'none';
                         return (<>
                       {/* Slide 1 - Cover (only when "with title" is selected) */}
                       {showSongTitle && (
@@ -1894,8 +1923,8 @@ export default function Songs() {
                         )}
                         {hasImg && <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/45 to-black/30 pointer-events-none"></div>}
                         <div className="absolute inset-0 ring-1 ring-white/10 rounded-3xl pointer-events-none"></div>
-                        <h3 className="font-serif font-black mb-4 relative z-10" style={{ color: pc.lc, fontSize: `${Math.round(lyricFontSize * 0.85)}px`, textShadow: PREVIEW_TEXT_SHADOW }}>{previewingSong.title}</h3>
-                        <p className="uppercase tracking-widest relative z-10" style={{ color: pc.tc, fontSize: `${Math.round(translationFontSize * 0.85)}px`, textShadow: PREVIEW_TEXT_SHADOW }}>{previewingSong.englishTitle}</p>
+                        <h3 className="font-serif font-black mb-4 relative z-10" style={{ color: pc.lc, fontSize: `${Math.round(lyricFontSize * 0.85)}px`, textShadow: shadowCss }}>{previewingSong.title}</h3>
+                        <p className="uppercase tracking-widest relative z-10" style={{ color: pc.tc, fontSize: `${Math.round(translationFontSize * 0.85)}px`, textShadow: shadowCss }}>{previewingSong.englishTitle}</p>
                         <div className="absolute bottom-4 left-4 flex items-center gap-2 z-10 uppercase">
                            <div className="text-[8px] text-white/40 font-black">SLIDE 01 / {t('cover')}</div>
                            {previewingSong.customBg && <span className="text-[8px] px-2 py-0.5 rounded-full bg-emerald-500/80 text-white font-black uppercase">{t('independentBg')}</span>}
@@ -1936,10 +1965,10 @@ export default function Songs() {
 
                               return (
                                 <div key={pairIdx} className="space-y-1">
-                                  <p className="font-serif font-black leading-tight" style={{ color: pc.lc, fontSize: `${Math.round(lyricFontSize * 0.78)}px`, textShadow: PREVIEW_TEXT_SHADOW }}>
+                                  <p className="font-serif font-black leading-tight" style={{ color: pc.lc, fontSize: `${Math.round(lyricFontSize * 0.78)}px`, textShadow: shadowCss }}>
                                     {cnLine || (slideIndex === 0 && pairIdx === 0 ? t('firstLinePlaceholder') : "")}
                                   </p>
-                                  <p className="italic font-normal tracking-wide" style={{ color: pc.tc, fontSize: `${Math.round(translationFontSize * 0.78)}px`, textShadow: PREVIEW_TEXT_SHADOW }}>
+                                  <p className="italic font-normal tracking-wide" style={{ color: pc.tc, fontSize: `${Math.round(translationFontSize * 0.78)}px`, textShadow: shadowCss }}>
                                     {enLine || (slideIndex === 0 && pairIdx === 0 ? t('translatingLine') : "")}
                                   </p>
                                 </div>
@@ -2037,6 +2066,21 @@ export default function Songs() {
                                 <span className="text-[9px] font-black text-outline/60 uppercase">{t('uploadImage')}</span>
                                 <input type="file" className="hidden" accept="image/*" onChange={handleFileUpload} />
                             </label>
+
+                            {/* Text shadow on/off */}
+                            <button
+                              type="button"
+                              onClick={() => setEnableShadow(v => !v)}
+                              className="mt-3 w-full flex items-center justify-between px-4 py-3 rounded-xl bg-[#F9F7F5] border border-[#E5E0DA]/40 hover:border-emerald-500/40 transition-all"
+                            >
+                              <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-outline/60">
+                                <span className="material-symbols-outlined text-[16px]">format_color_text</span>
+                                {isZh ? '文字阴影' : 'Text Shadow'}
+                              </span>
+                              <span className={`relative w-10 h-5 rounded-full transition-all ${enableShadow ? 'bg-emerald-500' : 'bg-neutral-300'}`}>
+                                <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${enableShadow ? 'right-0.5' : 'left-0.5'}`}></span>
+                              </span>
+                            </button>
                         </div>
                      </div>
                    ) : (
