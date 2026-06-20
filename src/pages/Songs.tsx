@@ -9,6 +9,7 @@ import { logActivity } from '../services/activityService';
 import { googleDriveService } from '../services/googleDrive';
 import { supabase } from '../lib/supabase';
 import { isSuperAdmin, getActiveChurchId, isDemoChurch } from '../lib/permissions';
+import { resolveSlideColors, PPT_TEXT_SHADOW, PREVIEW_TEXT_SHADOW } from '../lib/pptTheme';
 
 import LyricsSheetModal from '../components/LyricsSheetModal';
 
@@ -75,9 +76,17 @@ const INITIAL_LIBRARY: Song[] = [
 // Remove duplicate paragraphs/lines that worship lyrics often repeat back-to-back.
 // 1) collapse immediately-repeated single lines, 2) collapse immediately-repeated
 // 2–8 line blocks (e.g. a verse pasted twice in a row).
+// Strip ALL blank/whitespace-only lines from pasted lyrics. Worship lyrics are
+// shown one line per row on the slides, so blank lines only create empty slides.
+function stripBlankLines(text: string): string {
+  if (!text) return text;
+  return text.split('\n').filter(l => l.trim().length > 0).join('\n').trim();
+}
+
 function dedupeLyrics(text: string): string {
   if (!text) return text;
-  let lines = text.split('\n');
+  // Remove blank lines up-front so verse de-duplication compares real content only.
+  let lines = stripBlankLines(text).split('\n');
 
   // collapse consecutive identical (non-empty) lines
   const single: string[] = [];
@@ -103,8 +112,8 @@ function dedupeLyrics(text: string): string {
     }
   }
 
-  // collapse 3+ blank lines down to a single blank
-  return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  // blank lines were already removed above
+  return lines.join('\n').trim();
 }
 
 export default function Songs() {
@@ -403,17 +412,29 @@ export default function Songs() {
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    // Reset the input so choosing the same file again still fires onChange.
+    e.target.value = '';
     if (file) {
       const reader = new FileReader();
       reader.onload = (event) => {
         const dataUrl = event.target?.result as string;
         const newBg = {
-          id: `custom-${customBgs.length}-${Date.now()}`,
+          // Fully-unique id — the old `customBgs.length` based id collided when
+          // images were added/removed, which made every upload look "the same".
+          id: `custom-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
           label: t('uploadImage'),
           url: dataUrl
         };
-        setCustomBgs([...customBgs, newBg]);
-        setSelectedBg(newBg);
+        setCustomBgs(prev => [...prev, newBg]);
+        // If a song is open in the preview, apply the upload to THAT song only
+        // (per-song background). Otherwise set it as the global theme.
+        if (previewingSong) {
+          const updatedWeekly = weeklySetlist.map(s => s.id === previewingSong.id ? { ...s, customBg: newBg } : s);
+          setWeeklySetlist(updatedWeekly);
+          setPreviewingSong({ ...previewingSong, customBg: newBg });
+        } else {
+          setSelectedBg(newBg);
+        }
       };
       reader.readAsDataURL(file);
     }
@@ -478,6 +499,12 @@ export default function Songs() {
   };
 
   const handleUpdateSong = async (updatedSong: any) => {
+    // Auto-remove blank lines so slides never render empty rows.
+    updatedSong = {
+      ...updatedSong,
+      lyrics: stripBlankLines(updatedSong.lyrics || ''),
+      englishLyrics: stripBlankLines(updatedSong.englishLyrics || ''),
+    };
     setDownloadStatus(isZh ? '正在保存...' : 'Saving...');
     try {
       const { error } = await supabase
@@ -553,6 +580,9 @@ export default function Songs() {
   };
 
   const handleSaveNewSong = async () => {
+    // Auto-remove blank lines from the lyrics before saving (no empty slides).
+    newSongData.lyrics = stripBlankLines(newSongData.lyrics);
+    newSongData.englishLyrics = stripBlankLines(newSongData.englishLyrics);
     // Warn if this song is already in the library (matched by title)
     const normTitle = (s: string) => s.toLowerCase().replace(/\s+/g, '');
     const dup = librarySongs.find(s =>
@@ -795,13 +825,19 @@ export default function Songs() {
 
         const generateSongSlides = (song: any, isMultiple: boolean) => {
           const activeBg = song.customBg || selectedBg;
-          // Use the stored song's own lyricColor/translationColor/fontSize if present (from Ready PPT)
-          const lc = (song.lyricColor || lyricColor).replace('#', '');
-          const tc = (song.translationColor || translationColor).replace('#', '');
+          // Auto-adapt text color to the background and decide if we need a dark
+          // readability overlay (matches the on-screen preview exactly).
+          const userLc = song.lyricColor || lyricColor;
+          const userTc = song.translationColor || translationColor;
+          const colors = resolveSlideColors(activeBg, userLc, userTc);
+          const lc = colors.lc.replace('#', '');
+          const tc = colors.tc.replace('#', '');
           const lps = song.linesPerSlide || linesPerSlide;
           const lfs = song.lyricFontSize || lyricFontSize;
           const tfs = song.translationFontSize || translationFontSize;
 
+          // Sets the slide background AND draws the dark overlay for image
+          // backgrounds so text stays readable on bright/busy photos.
           const setSlideBg = (s: any) => {
             if (activeBg?.url) {
               const cached = bgUrlCache.get(activeBg.url);
@@ -814,6 +850,12 @@ export default function Songs() {
               }
             } else {
               s.background = { color: activeBg?.color || "064E3B" };
+            }
+            if (colors.overlay) {
+              s.addShape(pres.ShapeType.rect, {
+                x: 0, y: 0, w: '100%', h: '100%',
+                fill: { color: '000000', transparency: 55 }, line: { type: 'none' },
+              });
             }
           };
 
@@ -832,7 +874,7 @@ export default function Songs() {
               headerSlide.addText(song.title, {
                 x: 0, y: 2.2, w: "100%", h: 1.5,
                 align: "center", fontFace: titleFont, fontSize: 64, color: "FFFFFF", bold: true,
-                shadow: { type: 'outer', color: '000000', blur: 10, offset: 2, opacity: 0.5 }
+                shadow: PPT_TEXT_SHADOW
               });
               headerSlide.addShape(pres.ShapeType.rect, { x: 4.25, y: 4.2, w: 1.5, h: 0.05, fill: { color: "A7F3D0" } });
             }
@@ -850,12 +892,13 @@ export default function Songs() {
             slide.addText(song.title, {
               x: 0, y: 1.5, w: "100%", h: 2,
               align: "center", fontFace: titleFont, fontSize: 48, color: lc, bold: true,
-              shadow: { type: 'outer', color: '000000', blur: 10, offset: 2, opacity: 0.5 }
+              shadow: PPT_TEXT_SHADOW
             });
 
             slide.addText(song.englishTitle || "", {
               x: 0, y: 3.5, w: "100%", h: 1,
-              align: "center", fontFace: bodyFont, fontSize: 24, color: tc
+              align: "center", fontFace: bodyFont, fontSize: 24, color: tc,
+              shadow: PPT_TEXT_SHADOW
             });
           }
 
@@ -876,13 +919,14 @@ export default function Songs() {
                 lSlide.addText(lyricsLines[idx], {
                   x: 0, y: currentY, w: "100%", h: 0.8,
                   align: "center", fontFace: titleFont, fontSize: lyricPt, color: lc, bold: true,
-                  shadow: { type: 'outer', color: '000000', blur: 10, offset: 2, opacity: 0.5 }
+                  shadow: PPT_TEXT_SHADOW
                 });
                 currentY += 0.8;
                 if (englishLines[idx]) {
                   lSlide.addText(englishLines[idx], {
                     x: 0, y: currentY, w: "100%", h: 0.6,
-                    align: "center", fontFace: bodyFont, fontSize: transPt, color: tc, italic: true
+                    align: "center", fontFace: bodyFont, fontSize: transPt, color: tc, italic: true,
+                    shadow: PPT_TEXT_SHADOW
                   });
                   currentY += 0.8;
                 }
@@ -1209,8 +1253,8 @@ export default function Songs() {
                              
                           <div className="flex items-center gap-3 p-1.5 bg-[#F9F7F5] rounded-full border border-[#E5E0DA]/30">
                             <div className="flex gap-1.5">
-                               {allBgOptions.slice(0, 6).map(bg => (
-                                  <button 
+                               {allBgOptions.filter(b => !b.isAi).map(bg => (
+                                  <button
                                     key={bg.id}
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -1821,6 +1865,13 @@ export default function Songs() {
                 {/* Left Side: Preview Slides */}
                 <div className="flex-1 p-10 bg-[#F9F7F5] overflow-y-auto no-scrollbar border-r border-[#E5E0DA]/50">
                     <div className="grid grid-cols-1 gap-8">
+                      {(() => {
+                        // Resolve preview colors/overlay the SAME way the .pptx does,
+                        // so what you see here is exactly what downloads.
+                        const pcBg = previewingSong.customBg || selectedBg;
+                        const pc = resolveSlideColors(pcBg, lyricColor, translationColor);
+                        const hasImg = !!pcBg?.url;
+                        return (<>
                       {/* Slide 1 - Cover (only when "with title" is selected) */}
                       {showSongTitle && (
                       <div
@@ -1841,10 +1892,10 @@ export default function Songs() {
                              }}
                            />
                         )}
-                        <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/30 to-black/10 pointer-events-none"></div>
+                        {hasImg && <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/45 to-black/30 pointer-events-none"></div>}
                         <div className="absolute inset-0 ring-1 ring-white/10 rounded-3xl pointer-events-none"></div>
-                        <h3 className="font-serif font-black mb-4 drop-shadow-lg relative z-10" style={{ color: lyricColor, fontSize: `${Math.round(lyricFontSize * 0.85)}px` }}>{previewingSong.title}</h3>
-                        <p className="uppercase tracking-widest relative z-10" style={{ color: translationColor + 'B3', fontSize: `${Math.round(translationFontSize * 0.85)}px` }}>{previewingSong.englishTitle}</p>
+                        <h3 className="font-serif font-black mb-4 relative z-10" style={{ color: pc.lc, fontSize: `${Math.round(lyricFontSize * 0.85)}px`, textShadow: PREVIEW_TEXT_SHADOW }}>{previewingSong.title}</h3>
+                        <p className="uppercase tracking-widest relative z-10" style={{ color: pc.tc, fontSize: `${Math.round(translationFontSize * 0.85)}px`, textShadow: PREVIEW_TEXT_SHADOW }}>{previewingSong.englishTitle}</p>
                         <div className="absolute bottom-4 left-4 flex items-center gap-2 z-10 uppercase">
                            <div className="text-[8px] text-white/40 font-black">SLIDE 01 / {t('cover')}</div>
                            {previewingSong.customBg && <span className="text-[8px] px-2 py-0.5 rounded-full bg-emerald-500/80 text-white font-black uppercase">{t('independentBg')}</span>}
@@ -1873,7 +1924,7 @@ export default function Songs() {
                               }}
                             />
                           )}
-                          <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-black/40 to-black/20 pointer-events-none"></div>
+                          {hasImg && <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-black/50 to-black/40 pointer-events-none"></div>}
 
                           <div className="relative z-10 space-y-4">
                             {Array.from({ length: linesPerSlide }).map((_, pairIdx) => {
@@ -1885,10 +1936,10 @@ export default function Songs() {
 
                               return (
                                 <div key={pairIdx} className="space-y-1">
-                                  <p className="font-serif font-black leading-tight" style={{ color: lyricColor, fontSize: `${Math.round(lyricFontSize * 0.78)}px` }}>
+                                  <p className="font-serif font-black leading-tight" style={{ color: pc.lc, fontSize: `${Math.round(lyricFontSize * 0.78)}px`, textShadow: PREVIEW_TEXT_SHADOW }}>
                                     {cnLine || (slideIndex === 0 && pairIdx === 0 ? t('firstLinePlaceholder') : "")}
                                   </p>
-                                  <p className="italic font-normal tracking-wide" style={{ color: translationColor, fontSize: `${Math.round(translationFontSize * 0.78)}px` }}>
+                                  <p className="italic font-normal tracking-wide" style={{ color: pc.tc, fontSize: `${Math.round(translationFontSize * 0.78)}px`, textShadow: PREVIEW_TEXT_SHADOW }}>
                                     {enLine || (slideIndex === 0 && pairIdx === 0 ? t('translatingLine') : "")}
                                   </p>
                                 </div>
@@ -1900,6 +1951,8 @@ export default function Songs() {
                       ))}
 
                       {/* Slides are now generated dynamically above */}
+                        </>);
+                      })()}
                     </div>
                 </div>
 
@@ -1945,18 +1998,15 @@ export default function Songs() {
                                     if (bg.isAi) {
                                       setIsAiPromptOpen(true);
                                     } else {
-                                      // Force immediate re-render by updating both the specific song and the global state
-                                      // This ensures the preview modal sees the change immediately
+                                      // Apply this background to THIS song only (per-song customBg).
+                                      // Do NOT touch the global selectedBg — that was the bug that
+                                      // forced every song to share one background.
                                       const updatedWeekly = weeklySetlist.map(s => s.id === previewingSong.id ? { ...s, customBg: bg } : s);
                                       setWeeklySetlist(updatedWeekly);
-                                      
-                                      // Find the full song object in the new list to update context
                                       const updatedPreviewSong = updatedWeekly.find(s => s.id === previewingSong.id);
                                       if (updatedPreviewSong) {
                                         setPreviewingSong(updatedPreviewSong);
                                       }
-                                      
-                                      setSelectedBg(bg);
                                     }
                                   }}
                                   className={`relative aspect-video rounded-xl overflow-hidden border-2 transition-all ${ (previewingSong.customBg?.id || selectedBg.id) === bg.id ? 'border-emerald-500 scale-105 shadow-lg ring-2 ring-emerald-500/20' : 'border-[#E5E0DA]/30 hover:border-emerald-500/50'}`}

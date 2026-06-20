@@ -5,6 +5,7 @@ import { useMode } from '../contexts/ModeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { getActiveChurchId } from '../lib/permissions';
 import { supabase } from '../lib/supabase';
+import { resolveSlideColors, PPT_TEXT_SHADOW, PREVIEW_TEXT_SHADOW } from '../lib/pptTheme';
 
 const DEFAULT_PPT_CATEGORIES = ['本周', '主日学', '敬拜', '讲道'];
 
@@ -331,8 +332,6 @@ export default function ReadyPPT() {
         const sd = (item as any).songData;
 
         if (sd) {
-          const lc = (sd.lyricColor || '#FFFFFF').replace('#', '');
-          const tc = (sd.translationColor || '#A7F3D0').replace('#', '');
           const lps = sd.linesPerSlide || 2;
 
           // Collect all background URLs that need pre-fetching
@@ -352,7 +351,7 @@ export default function ReadyPPT() {
             if (b64) bgUrlCache.set(url, b64);
           }));
 
-          const makeSlideBg = (bg: any) => (s: any) => {
+          const makeSlideBg = (bg: any, overlay: boolean) => (s: any) => {
             if (bg?.url) {
               const cached = bgUrlCache.get(bg.url);
               if (cached) {
@@ -365,13 +364,26 @@ export default function ReadyPPT() {
             } else {
               s.background = { color: bg?.color || '064E3B' };
             }
+            if (overlay) {
+              s.addShape(pres.ShapeType.rect, {
+                x: 0, y: 0, w: '100%', h: '100%',
+                fill: { color: '000000', transparency: 55 }, line: { type: 'none' },
+              });
+            }
           };
 
           const generateSongSlides = (song: any, isMultiple: boolean) => {
-            const songLc = (song.lyricColor || sd.lyricColor || '#FFFFFF').replace('#', '');
-            const songTc = (song.translationColor || sd.translationColor || '#A7F3D0').replace('#', '');
+            const activeBg = song.bg || sd.globalBg || selectedBg;
+            // Auto-adapt text color + overlay to the background so the .pptx matches preview.
+            const colors = resolveSlideColors(
+              activeBg,
+              song.lyricColor || sd.lyricColor || '#FFFFFF',
+              song.translationColor || sd.translationColor || '#A7F3D0',
+            );
+            const songLc = colors.lc.replace('#', '');
+            const songTc = colors.tc.replace('#', '');
             const songLps = song.linesPerSlide || lps;
-            const setSlideBg = makeSlideBg(song.bg || sd.globalBg || selectedBg);
+            const setSlideBg = makeSlideBg(activeBg, colors.overlay);
 
             // Song separator slide (if multiple songs)
             if (isMultiple) {
@@ -383,7 +395,7 @@ export default function ReadyPPT() {
               sep.addText(song.title || '', {
                 x: 0, y: 2.2, w: "100%", h: 1.5,
                 align: "center", fontFace: titleFont, fontSize: 64, color: "FFFFFF", bold: true,
-                shadow: { type: 'outer', color: '000000', blur: 10, offset: 2, opacity: 0.5 }
+                shadow: PPT_TEXT_SHADOW
               });
               sep.addShape(pres.ShapeType.rect, { x: 4.25, y: 4.2, w: 1.5, h: 0.05, fill: { color: "A7F3D0" } });
             }
@@ -394,12 +406,13 @@ export default function ReadyPPT() {
             cover.addText(song.title || item.name, {
               x: 0, y: 1.5, w: "100%", h: 2,
               align: "center", fontFace: titleFont, fontSize: 48, color: songLc, bold: true,
-              shadow: { type: 'outer', color: '000000', blur: 10, offset: 2, opacity: 0.5 }
+              shadow: PPT_TEXT_SHADOW
             });
             if (song.englishTitle) {
               cover.addText(song.englishTitle, {
                 x: 0, y: 3.5, w: "100%", h: 1,
-                align: "center", fontFace: bodyFont, fontSize: 24, color: songTc
+                align: "center", fontFace: bodyFont, fontSize: 24, color: songTc,
+                shadow: PPT_TEXT_SHADOW
               });
             }
 
@@ -416,13 +429,14 @@ export default function ReadyPPT() {
                   lSlide.addText(lyricsLines[idx], {
                     x: 0, y: currentY, w: "100%", h: 0.8,
                     align: "center", fontFace: titleFont, fontSize: 36, color: songLc, bold: true,
-                    shadow: { type: 'outer', color: '000000', blur: 10, offset: 2, opacity: 0.5 }
+                    shadow: PPT_TEXT_SHADOW
                   });
                   currentY += 0.8;
                   if (englishLines[idx]) {
                     lSlide.addText(englishLines[idx], {
                       x: 0, y: currentY, w: "100%", h: 0.6,
-                      align: "center", fontFace: bodyFont, fontSize: 24, color: songTc, italic: true
+                      align: "center", fontFace: bodyFont, fontSize: 24, color: songTc, italic: true,
+                      shadow: PPT_TEXT_SHADOW
                     });
                     currentY += 0.8;
                   }
@@ -436,24 +450,33 @@ export default function ReadyPPT() {
         } else {
           // Generic fallback for items without stored song data
           const bg = selectedBg;
+          const colors = resolveSlideColors(bg, '#FFFFFF', '#A7F3D0');
           const b64 = bg.url ? await fetchImageAsBase64(bg.url) : null;
           const setSlideBg = (s: any) => {
             if (b64) s.background = { data: b64 };
             else if (bg.url?.startsWith('data:')) s.background = { data: bg.url };
             else if (bg.url) s.background = { path: bg.url.split('?')[0] };
             else s.background = { color: bg.color || '064E3B' };
+            if (colors.overlay) {
+              s.addShape(pres.ShapeType.rect, {
+                x: 0, y: 0, w: '100%', h: '100%',
+                fill: { color: '000000', transparency: 55 }, line: { type: 'none' },
+              });
+            }
           };
 
           let slide = pres.addSlide();
           setSlideBg(slide);
           slide.addText(item.title || item.name, {
             x: 0, y: 1.5, w: "100%", h: 2,
-            align: "center", fontFace: titleFont, fontSize: 48, color: "FFFFFF", bold: true
+            align: "center", fontFace: titleFont, fontSize: 48, color: colors.lc.replace('#', ''), bold: true,
+            shadow: PPT_TEXT_SHADOW
           });
           if (item.preacher) {
             slide.addText(item.preacher, {
               x: 0, y: 3.5, w: "100%", h: 1,
-              align: "center", fontFace: bodyFont, fontSize: 24, color: "A7F3D0"
+              align: "center", fontFace: bodyFont, fontSize: 24, color: colors.tc.replace('#', ''),
+              shadow: PPT_TEXT_SHADOW
             });
           }
         }
@@ -780,8 +803,11 @@ export default function ReadyPPT() {
                        <div className="flex-1 flex flex-col gap-0 overflow-y-auto no-scrollbar">
                          {songs.map((song: any, si: number) => {
                            const bg = song.bg || sd.globalBg;
-                           const songLc = song.lyricColor || lc;
-                           const songTc = song.translationColor || tc;
+                           // Resolve colors/overlay exactly like the .pptx export.
+                           const pc = resolveSlideColors(bg, song.lyricColor || lc, song.translationColor || tc);
+                           const songLc = pc.lc;
+                           const songTc = pc.tc;
+                           const hasImg = !!bg?.url;
                            const songLps = song.linesPerSlide || lps;
                            const lyricsLines = (song.lyrics || '').split('\n').filter((l: string) => l.trim());
                            const englishLines = (song.englishLyrics || '').split('\n').filter((l: string) => l.trim());
@@ -798,13 +824,13 @@ export default function ReadyPPT() {
                              <div key={si} className="flex-shrink-0">
                                {slides.map((slide, idx) => (
                                  <div key={idx} className="relative flex items-center justify-center text-center p-8" style={{ ...bgStyle, aspectRatio: '16/9' }}>
-                                   <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-black/40 to-black/20" />
+                                   {hasImg && <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-black/50 to-black/40" />}
                                    <div className="relative z-10 space-y-2 w-full">
                                      {slide.type === 'cover' ? (
                                        <>
                                          <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: songLc, opacity: 0.6 }}>SLIDE {idx + 1}</p>
-                                         <h2 className="text-4xl font-serif font-black drop-shadow-lg" style={{ color: songLc }}>{(slide as any).title}</h2>
-                                         <p className="text-lg font-medium" style={{ color: songTc }}>{(slide as any).sub}</p>
+                                         <h2 className="text-4xl font-serif font-black" style={{ color: songLc, textShadow: PREVIEW_TEXT_SHADOW }}>{(slide as any).title}</h2>
+                                         <p className="text-lg font-medium" style={{ color: songTc, textShadow: PREVIEW_TEXT_SHADOW }}>{(slide as any).sub}</p>
                                        </>
                                      ) : (
                                        <>
@@ -813,8 +839,8 @@ export default function ReadyPPT() {
                                            const lineIdx = (slide as any).startIdx + j;
                                            return (
                                              <div key={j}>
-                                               {lyricsLines[lineIdx] && <p className="text-2xl font-serif font-black drop-shadow" style={{ color: songLc }}>{lyricsLines[lineIdx]}</p>}
-                                               {englishLines[lineIdx] && <p className="text-sm italic" style={{ color: songTc }}>{englishLines[lineIdx]}</p>}
+                                               {lyricsLines[lineIdx] && <p className="text-2xl font-serif font-black" style={{ color: songLc, textShadow: PREVIEW_TEXT_SHADOW }}>{lyricsLines[lineIdx]}</p>}
+                                               {englishLines[lineIdx] && <p className="text-sm italic" style={{ color: songTc, textShadow: PREVIEW_TEXT_SHADOW }}>{englishLines[lineIdx]}</p>}
                                              </div>
                                            );
                                          })}

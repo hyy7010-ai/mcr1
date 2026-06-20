@@ -136,11 +136,16 @@ export async function translateLyrics(text: string, targetLang: string): Promise
       {
         role: 'system',
         content:
-          `You translate Christian worship song lyrics into natural, singable ${target}. ` +
-          `The input is numbered, one line per number. Translate EVERY single line — never skip, merge, summarize, or stop early. ` +
+          `You render Christian worship song lyrics into ${target}. ` +
+          `CRITICAL: If these lyrics belong to a well-known classic hymn or worship song that has an authoritative published ${target} version ` +
+          `(e.g. "Amazing Grace", "How Great Thou Art", "How Great Is Our God", "10,000 Reasons", "In Christ Alone", "Hallelujah"), ` +
+          `you MUST output that EXACT standard published ${target} text — the canonical lyrics people actually sing to the original tune — ` +
+          `NOT a fresh literal translation. Match each source line to the corresponding official line so it stays singable to the original melody. ` +
+          `Only when no standard published version exists should you translate naturally and singably. ` +
+          `The input is numbered, one line per number. Provide EVERY single line — never skip, merge, summarize, or stop early. ` +
           `Output the SAME count of lines, each prefixed with its number and a period, e.g. "1. ...". ` +
           `If an input line is "∅" it is blank: output just the number, period, nothing else. ` +
-          `Use accurate, reverent Christian terminology. Output ONLY the numbered translation, no notes.`,
+          `Use accurate, reverent Christian terminology. Output ONLY the numbered lines, no notes.`,
       },
       { role: 'user', content: numbered },
     ]);
