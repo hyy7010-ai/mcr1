@@ -1943,11 +1943,18 @@ export default function Songs() {
                 <div className="flex-1 p-10 bg-[#F9F7F5] overflow-y-auto no-scrollbar border-r border-[#E5E0DA]/50">
                     <div className="grid grid-cols-1 gap-8">
                       {(() => {
-                        // Resolve preview colors/overlay the SAME way the .pptx does,
-                        // so what you see here is exactly what downloads.
-                        const pcBg = previewingSong.customBg || selectedBg;
+                        // Resolve preview colors/overlay/size/bg the SAME way the
+                        // .pptx does, so what you see here is exactly what downloads.
+                        // The unify toggles override the per-song background/size.
+                        const previewBg = unifyBackground ? selectedBg : (previewingSong.customBg || selectedBg);
+                        const previewLfs = unifyFontSize ? lyricFontSize : (previewingSong.lyricFontSize || lyricFontSize);
+                        const previewTfs = unifyFontSize ? translationFontSize : (previewingSong.translationFontSize || translationFontSize);
+                        const pcBg = previewBg;
                         const pc = resolveSlideColors(pcBg, lyricColor, translationColor);
                         const hasImg = !!pcBg?.url;
+                        // Show the "independent background" badge only when this song
+                        // is actually using its own bg (i.e. not unified to global).
+                        const usingOwnBg = !unifyBackground && !!previewingSong.customBg;
                         const shadowCss = enableShadow ? previewShadow(shadowLevel) : 'none';
                         return (<>
                       {/* Slide 1 - Cover (only when "with title" is selected) */}
@@ -1956,12 +1963,12 @@ export default function Songs() {
                         className="rounded-3xl p-8 flex flex-col items-center justify-center text-center shadow-xl relative group overflow-hidden"
                         style={{
                           aspectRatio: '16/9',
-                          ...(!(previewingSong.customBg?.url || selectedBg.url) ? { backgroundColor: `#${previewingSong.customBg?.color || selectedBg.color || '064E3B'}` } : {})
+                          ...(!previewBg?.url ? { backgroundColor: `#${previewBg?.color || '064E3B'}` } : {})
                         }}
                       >
-                        {(previewingSong.customBg?.url || selectedBg.url) && (
+                        {previewBg?.url && (
                            <img
-                             src={previewingSong.customBg?.url || selectedBg.url}
+                             src={previewBg.url}
                              alt="BG"
                              referrerPolicy="no-referrer"
                              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }}
@@ -1972,11 +1979,11 @@ export default function Songs() {
                         )}
                         {hasImg && <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/45 to-black/30 pointer-events-none"></div>}
                         <div className="absolute inset-0 ring-1 ring-white/10 rounded-3xl pointer-events-none"></div>
-                        <h3 className="font-serif font-black mb-4 relative z-10" style={{ color: pc.lc, fontSize: `${Math.round(lyricFontSize * 0.85)}px`, textShadow: shadowCss }}>{previewingSong.title}</h3>
-                        <p className="uppercase tracking-widest relative z-10" style={{ color: pc.tc, fontSize: `${Math.round(translationFontSize * 0.85)}px`, textShadow: shadowCss }}>{previewingSong.englishTitle}</p>
+                        <h3 className="font-serif font-black mb-4 relative z-10" style={{ color: pc.lc, fontSize: `${Math.round(previewLfs * 0.85)}px`, textShadow: shadowCss }}>{previewingSong.title}</h3>
+                        <p className="uppercase tracking-widest relative z-10" style={{ color: pc.tc, fontSize: `${Math.round(previewTfs * 0.85)}px`, textShadow: shadowCss }}>{previewingSong.englishTitle}</p>
                         <div className="absolute bottom-4 left-4 flex items-center gap-2 z-10 uppercase">
                            <div className="text-[8px] text-white/40 font-black">SLIDE 01 / {t('cover')}</div>
-                           {previewingSong.customBg && <span className="text-[8px] px-2 py-0.5 rounded-full bg-emerald-500/80 text-white font-black uppercase">{t('independentBg')}</span>}
+                           {usingOwnBg && <span className="text-[8px] px-2 py-0.5 rounded-full bg-emerald-500/80 text-white font-black uppercase">{t('independentBg')}</span>}
                         </div>
                       </div>
                       )}
@@ -1988,12 +1995,12 @@ export default function Songs() {
                           className="rounded-3xl p-10 flex flex-col justify-center text-center shadow-xl relative overflow-hidden mb-8"
                           style={{
                             aspectRatio: '16/9',
-                            ...(!(previewingSong.customBg?.url || selectedBg.url) ? { backgroundColor: `#${previewingSong.customBg?.color || selectedBg.color || '064E3B'}` } : {})
+                            ...(!previewBg?.url ? { backgroundColor: `#${previewBg?.color || '064E3B'}` } : {})
                           }}
                         >
-                          {(previewingSong.customBg?.url || selectedBg.url) && (
+                          {previewBg?.url && (
                             <img
-                              src={previewingSong.customBg?.url || selectedBg.url}
+                              src={previewBg.url}
                               alt="BG"
                               referrerPolicy="no-referrer"
                               style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }}
@@ -2014,10 +2021,10 @@ export default function Songs() {
 
                               return (
                                 <div key={pairIdx} className="space-y-1">
-                                  <p className="font-serif font-black leading-tight" style={{ color: pc.lc, fontSize: `${Math.round(lyricFontSize * 0.78)}px`, textShadow: shadowCss }}>
+                                  <p className="font-serif font-black leading-tight" style={{ color: pc.lc, fontSize: `${Math.round(previewLfs * 0.78)}px`, textShadow: shadowCss }}>
                                     {cnLine || (slideIndex === 0 && pairIdx === 0 ? t('firstLinePlaceholder') : "")}
                                   </p>
-                                  <p className="italic font-normal tracking-wide" style={{ color: pc.tc, fontSize: `${Math.round(translationFontSize * 0.78)}px`, textShadow: shadowCss }}>
+                                  <p className="italic font-normal tracking-wide" style={{ color: pc.tc, fontSize: `${Math.round(previewTfs * 0.78)}px`, textShadow: shadowCss }}>
                                     {enLine || (slideIndex === 0 && pairIdx === 0 ? t('translatingLine') : "")}
                                   </p>
                                 </div>
