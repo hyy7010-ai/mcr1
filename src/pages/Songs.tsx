@@ -1592,37 +1592,6 @@ export default function Songs() {
                         </p>
                       </div>
 
-                      {/* Export-wide uniformity toggles: force every song to use
-                          the same font size / background, ignoring per-song tweaks. */}
-                      <div className="flex flex-col sm:flex-row gap-3">
-                        <button
-                          type="button"
-                          onClick={() => setUnifyFontSize(v => !v)}
-                          className={`flex-1 flex items-center justify-between px-4 py-3 rounded-2xl border transition-all ${unifyFontSize ? 'bg-emerald-50 border-emerald-500/40' : 'bg-[#F9F7F5] border-[#E5E0DA]/40 hover:border-emerald-500/30'}`}
-                        >
-                          <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-outline/60">
-                            <span className="material-symbols-outlined text-[16px]">format_size</span>
-                            {isZh ? '统一字号' : 'Unify Font Size'}
-                          </span>
-                          <span className={`relative w-10 h-5 rounded-full transition-all shrink-0 ${unifyFontSize ? 'bg-emerald-500' : 'bg-neutral-300'}`}>
-                            <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${unifyFontSize ? 'right-0.5' : 'left-0.5'}`}></span>
-                          </span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setUnifyBackground(v => !v)}
-                          className={`flex-1 flex items-center justify-between px-4 py-3 rounded-2xl border transition-all ${unifyBackground ? 'bg-emerald-50 border-emerald-500/40' : 'bg-[#F9F7F5] border-[#E5E0DA]/40 hover:border-emerald-500/30'}`}
-                        >
-                          <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-outline/60">
-                            <span className="material-symbols-outlined text-[16px]">wallpaper</span>
-                            {isZh ? '统一背景' : 'Same Background'}
-                          </span>
-                          <span className={`relative w-10 h-5 rounded-full transition-all shrink-0 ${unifyBackground ? 'bg-emerald-500' : 'bg-neutral-300'}`}>
-                            <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${unifyBackground ? 'right-0.5' : 'left-0.5'}`}></span>
-                          </span>
-                        </button>
-                      </div>
-
                       <div className="flex flex-col gap-3 w-full">
                         {/* Per-song Ready PPT status summary */}
                         {weeklySetlist.length > 0 && (
@@ -2276,6 +2245,43 @@ export default function Songs() {
                              </span>
                              <span className={`relative w-10 h-5 rounded-full transition-all ${enableShadow ? 'bg-emerald-500' : 'bg-neutral-300'}`}>
                                <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${enableShadow ? 'right-0.5' : 'left-0.5'}`}></span>
+                             </span>
+                           </button>
+
+                           {/* Whole-deck uniformity — these apply to EVERY song on
+                               export, overriding each song's own font size / background. */}
+                           <div className="flex items-center gap-2 pt-1">
+                             <span className="text-[9px] font-black uppercase tracking-widest text-outline/35">{isZh ? '应用到全部歌曲' : 'Apply to all songs'}</span>
+                             <div className="flex-1 h-px bg-[#E5E0DA]/50"></div>
+                           </div>
+
+                           {/* Unify font size across all songs */}
+                           <button
+                             type="button"
+                             onClick={() => setUnifyFontSize(v => !v)}
+                             className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all ${unifyFontSize ? 'bg-emerald-50 border-emerald-500/40' : 'bg-[#F9F7F5] border-[#E5E0DA]/40 hover:border-emerald-500/40'}`}
+                           >
+                             <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-outline/60">
+                               <span className="material-symbols-outlined text-[16px]">format_size</span>
+                               {isZh ? '统一字号' : 'Unify Font Size'}
+                             </span>
+                             <span className={`relative w-10 h-5 rounded-full transition-all ${unifyFontSize ? 'bg-emerald-500' : 'bg-neutral-300'}`}>
+                               <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${unifyFontSize ? 'right-0.5' : 'left-0.5'}`}></span>
+                             </span>
+                           </button>
+
+                           {/* Use the same background for all songs */}
+                           <button
+                             type="button"
+                             onClick={() => setUnifyBackground(v => !v)}
+                             className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all ${unifyBackground ? 'bg-emerald-50 border-emerald-500/40' : 'bg-[#F9F7F5] border-[#E5E0DA]/40 hover:border-emerald-500/40'}`}
+                           >
+                             <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-outline/60">
+                               <span className="material-symbols-outlined text-[16px]">wallpaper</span>
+                               {isZh ? '统一背景' : 'Same Background'}
+                             </span>
+                             <span className={`relative w-10 h-5 rounded-full transition-all ${unifyBackground ? 'bg-emerald-500' : 'bg-neutral-300'}`}>
+                               <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${unifyBackground ? 'right-0.5' : 'left-0.5'}`}></span>
                              </span>
                            </button>
 
