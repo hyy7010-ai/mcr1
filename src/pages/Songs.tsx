@@ -9,7 +9,7 @@ import { logActivity } from '../services/activityService';
 import { googleDriveService } from '../services/googleDrive';
 import { supabase } from '../lib/supabase';
 import { isSuperAdmin, getActiveChurchId, isDemoChurch } from '../lib/permissions';
-import { resolveSlideColors, PPT_TEXT_SHADOW, PREVIEW_TEXT_SHADOW } from '../lib/pptTheme';
+import { resolveSlideColors, pptShadow, previewShadow, type ShadowLevel } from '../lib/pptTheme';
 
 import LyricsSheetModal from '../components/LyricsSheetModal';
 
@@ -288,6 +288,8 @@ export default function Songs() {
   const [translationFontSize, setTranslationFontSize] = useState(24);
   // Whether slide text gets a drop shadow (user-toggleable)
   const [enableShadow, setEnableShadow] = useState(true);
+  // How heavy that shadow is — light / medium / strong.
+  const [shadowLevel, setShadowLevel] = useState<ShadowLevel>('medium');
   // Export-wide overrides: when ON, every song uses the GLOBAL font size /
   // background and any per-song customisation is ignored, so the whole deck
   // looks uniform.
@@ -317,6 +319,8 @@ export default function Songs() {
     try {
       const s = localStorage.getItem(churchKey('ppt_shadow'));
       if (s !== null) setEnableShadow(s === 'true');
+      const sl = localStorage.getItem(churchKey('ppt_shadow_level'));
+      if (sl === 'light' || sl === 'medium' || sl === 'strong') setShadowLevel(sl);
     } catch {}
     // Restore the "unify font size / background" export preferences.
     try {
@@ -334,8 +338,11 @@ export default function Songs() {
 
   // Persist the shadow preference.
   useEffect(() => {
-    try { localStorage.setItem(churchKey('ppt_shadow'), String(enableShadow)); } catch {}
-  }, [enableShadow, activeChurchId]);
+    try {
+      localStorage.setItem(churchKey('ppt_shadow'), String(enableShadow));
+      localStorage.setItem(churchKey('ppt_shadow_level'), shadowLevel);
+    } catch {}
+  }, [enableShadow, shadowLevel, activeChurchId]);
 
   // Persist the unify-font / unify-background export preferences.
   useEffect(() => {
@@ -885,7 +892,7 @@ export default function Songs() {
           const tfs = unifyFontSize ? translationFontSize : (song.translationFontSize || translationFontSize);
           // Respect the per-song saved shadow flag, falling back to the global toggle.
           const shadowOn = song.shadow !== undefined ? song.shadow : enableShadow;
-          const textShadow = shadowOn ? PPT_TEXT_SHADOW : undefined;
+          const textShadow = shadowOn ? pptShadow(shadowLevel) : undefined;
 
           // Sets the slide background AND draws the dark overlay for image
           // backgrounds so text stays readable on bright/busy photos.
@@ -1941,7 +1948,7 @@ export default function Songs() {
                         const pcBg = previewingSong.customBg || selectedBg;
                         const pc = resolveSlideColors(pcBg, lyricColor, translationColor);
                         const hasImg = !!pcBg?.url;
-                        const shadowCss = enableShadow ? PREVIEW_TEXT_SHADOW : 'none';
+                        const shadowCss = enableShadow ? previewShadow(shadowLevel) : 'none';
                         return (<>
                       {/* Slide 1 - Cover (only when "with title" is selected) */}
                       {showSongTitle && (
@@ -2247,6 +2254,26 @@ export default function Songs() {
                                <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${enableShadow ? 'right-0.5' : 'left-0.5'}`}></span>
                              </span>
                            </button>
+
+                           {/* Shadow depth — only relevant while the shadow is on */}
+                           {enableShadow && (
+                             <div className="flex gap-2 p-1 bg-[#F9F7F5] rounded-xl border border-[#E5E0DA]/30">
+                               {([
+                                 { key: 'light',  zh: '轻',  en: 'Light' },
+                                 { key: 'medium', zh: '中',  en: 'Medium' },
+                                 { key: 'strong', zh: '重',  en: 'Strong' },
+                               ] as { key: ShadowLevel; zh: string; en: string }[]).map(opt => (
+                                 <button
+                                   key={opt.key}
+                                   type="button"
+                                   onClick={() => setShadowLevel(opt.key)}
+                                   className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${shadowLevel === opt.key ? 'bg-white text-emerald-600 shadow-sm' : 'text-outline/40 hover:text-outline/60'}`}
+                                 >
+                                   {isZh ? opt.zh : opt.en}
+                                 </button>
+                               ))}
+                             </div>
+                           )}
 
                            {/* Whole-deck uniformity — these apply to EVERY song on
                                export, overriding each song's own font size / background. */}

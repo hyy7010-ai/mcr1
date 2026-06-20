@@ -45,16 +45,29 @@ export function resolveSlideColors(
   return { lc: userLyricColor, tc: userTranslationColor, overlay: false };
 }
 
-// Strong, consistent shadow used for every PPT text block so the words lift off
-// the background. (angle 45°, soft blur — renders identically in PowerPoint/Keynote.)
-export const PPT_TEXT_SHADOW = {
-  type: 'outer' as const,
-  color: '000000',
-  blur: 8,
-  offset: 3,
-  angle: 45,
-  opacity: 0.75,
+// How heavy the drop shadow behind slide text is. Lets users dial readability
+// up/down depending on how busy the background photo is.
+export type ShadowLevel = 'light' | 'medium' | 'strong';
+
+// Tuning per level — blur/offset/opacity for the .pptx, matched CSS for preview.
+const SHADOW_LEVELS: Record<ShadowLevel, { blur: number; offset: number; opacity: number; css: string }> = {
+  light:  { blur: 4,  offset: 2, opacity: 0.5,  css: '0 2px 4px rgba(0,0,0,0.5), 0 1px 1px rgba(0,0,0,0.4)' },
+  medium: { blur: 8,  offset: 3, opacity: 0.75, css: '0 3px 8px rgba(0,0,0,0.75), 0 1px 2px rgba(0,0,0,0.6)' },
+  strong: { blur: 15, offset: 5, opacity: 0.9,  css: '0 5px 14px rgba(0,0,0,0.9), 0 2px 4px rgba(0,0,0,0.75)' },
 };
 
-// The CSS text-shadow that mirrors PPT_TEXT_SHADOW for the on-screen preview.
-export const PREVIEW_TEXT_SHADOW = '0 3px 8px rgba(0,0,0,0.75), 0 1px 2px rgba(0,0,0,0.6)';
+// The pptxgenjs shadow object for a given level (angle 45°, soft blur — renders
+// identically in PowerPoint/Keynote).
+export function pptShadow(level: ShadowLevel = 'medium') {
+  const m = SHADOW_LEVELS[level] || SHADOW_LEVELS.medium;
+  return { type: 'outer' as const, color: '000000', angle: 45, blur: m.blur, offset: m.offset, opacity: m.opacity };
+}
+
+// The CSS text-shadow that mirrors pptShadow() for the on-screen preview.
+export function previewShadow(level: ShadowLevel = 'medium'): string {
+  return (SHADOW_LEVELS[level] || SHADOW_LEVELS.medium).css;
+}
+
+// Back-compat constants (medium) for callers that don't expose a level yet.
+export const PPT_TEXT_SHADOW = pptShadow('medium');
+export const PREVIEW_TEXT_SHADOW = previewShadow('medium');
