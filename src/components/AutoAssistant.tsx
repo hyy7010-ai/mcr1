@@ -8,6 +8,7 @@ import { getActiveChurchId } from '../lib/permissions';
 import { rosterService } from '../services/rosterService';
 import { memberService } from '../services/memberService';
 import { askGraceAIV2 } from '../services/geminiService';
+import { supabase } from '../lib/supabase';
 
 // ── Auto-mode "all-in-one" assistant ─────────────────────────────────────────
 // When the user flips to Auto mode this IS the whole screen: a chat they hand
@@ -22,6 +23,8 @@ interface Msg {
   role: 'user' | 'bot';
   text: string;
   action?: { label: string; path: string };
+  // A real, data-changing action that needs explicit user confirmation first.
+  confirm?: { kind: 'approve' | 'reject'; id: string; name: string; done?: boolean };
 }
 
 interface Intent {
@@ -72,26 +75,31 @@ const AutoAssistant: React.FC = () => {
   const [roster, setRoster] = useState<any[]>([]);
   const [members, setMembers] = useState<any[]>([]);
   const [managers, setManagers] = useState<any[]>([]);
+  const [pending, setPending] = useState<any[]>([]);
   const [msgs, setMsgs] = useState<Msg[]>([{
     role: 'bot',
     text: isZh
-      ? '我是你的全能助手,接入了 Grace 的 AI 大脑。把任何事交给我:做 PPT、排班、周报、查名单,或者直接问我任何问题。\n\n例如:「帮我做这 3 首歌的 PPT」「这周日谁讲道」「帮我想想母亲节主日的流程」。'
-      : "I'm your all-in-one assistant, powered by Grace's AI brain. Hand me anything — make a PPT, scheduling, reports, look up members, or just ask me anything.\n\nTry: \"Make a PPT for these songs\", \"Who preaches this Sunday?\", \"Help me plan a Mother's Day service\".",
+      ? '我是你的全能助手,接入了 Grace 的 AI 大脑。把任何事交给我:批准会员、做 PPT、查排班、问任何问题。\n\n例如:「谁在等审核」→ 我列出来,你说「批准 张三」我确认后就帮你批;「这周日谁讲道」「帮我想母亲节主日流程」。'
+      : "I'm your all-in-one assistant, powered by Grace's AI brain. Hand me anything — approve members, make a PPT, check the roster, or ask me anything.\n\nTry: \"Who is awaiting approval?\" then \"approve John\"; \"Who preaches this Sunday?\"; \"Help plan a Mother's Day service\".",
   }]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Load church data so both the local roster answers AND the AI brain have
   // real context to work from.
+  const loadPending = (cid: string) => {
+    supabase.from('profiles').select('id, full_name, email, role').eq('church_id', cid).eq('role', 'Pending')
+      .then(({ data }: any) => { if (Array.isArray(data)) setPending(data); });
+  };
+
   useEffect(() => {
     const cid = activeChurchId || church?.id;
     if (!cid) return;
     rosterService.getAllRoster(cid).then(r => { if (Array.isArray(r)) setRoster(r); }).catch(() => {});
     memberService.getMembers(cid).then(m => { if (Array.isArray(m)) setMembers(m); }).catch(() => {});
-    import('../lib/supabase').then(({ supabase }) => {
-      supabase.from('profiles').select('full_name, role').eq('church_id', cid).eq('role', 'Manager')
-        .then(({ data }: any) => { if (Array.isArray(data)) setManagers(data); });
-    }).catch(() => {});
+    supabase.from('profiles').select('full_name, role').eq('church_id', cid).eq('role', 'Manager')
+      .then(({ data }: any) => { if (Array.isArray(data)) setManagers(data); });
+    loadPending(cid);
   }, [activeChurchId, church?.id]);
 
   useEffect(() => {
@@ -168,6 +176,40 @@ const AutoAssistant: React.FC = () => {
     setInput('');
     const intent = matchIntent(text);
 
+    // 0) Member approval — a real, data-changing action (confirm before doing).
+    const q = text.toLowerCase();
+    const wantsList = /待审核|等审核|谁在等|审核名单|pending|who.*(waiting|pending)/i.test(text);
+    const wantsApprove = /批准|通过|同意|approve|accept/i.test(text);
+    const wantsReject = /拒绝|驳回|删除.*申请|reject|decline/i.test(text);
+    if (wantsList || ((wantsApprove || wantsReject) )) {
+      // Who's the target? Match a pending member's name inside the message.
+      const target = pending.find(p => p.full_name && text.includes(p.full_name));
+      if (wantsList && !wantsApprove && !wantsReject) {
+        const body = pending.length
+          ? (isZh ? `现在有 ${pending.length} 位在等审核:\n` : `${pending.length} people awaiting approval:\n`) +
+            pending.map(p => `· ${p.full_name || p.email}`).join('\n') +
+            (isZh ? '\n\n说「批准 名字」或「拒绝 名字」我就帮你处理。' : '\n\nSay "approve <name>" or "reject <name>".')
+          : (isZh ? '现在没有人在等审核。' : 'No one is awaiting approval right now.');
+        setMsgs(prev => [...prev, { role: 'user', text }, { role: 'bot', text: body }]);
+        return;
+      }
+      if ((wantsApprove || wantsReject) && target) {
+        const kind = wantsReject ? 'reject' : 'approve';
+        const ask = kind === 'approve'
+          ? (isZh ? `要把 ${target.full_name} 批准为正式成员吗?` : `Approve ${target.full_name} as a member?`)
+          : (isZh ? `确定拒绝并删除 ${target.full_name} 的申请吗?此操作不可撤销。` : `Reject and remove ${target.full_name}'s request? This cannot be undone.`);
+        setMsgs(prev => [...prev, { role: 'user', text }, { role: 'bot', text: ask, confirm: { kind, id: target.id, name: target.full_name } }]);
+        return;
+      }
+      if ((wantsApprove || wantsReject) && !target) {
+        const hint = pending.length
+          ? (isZh ? `没找到这个人。在等审核的有:${pending.map(p => p.full_name).join('、')}。请说全名。` : `Couldn't find them. Pending: ${pending.map(p => p.full_name).join(', ')}.`)
+          : (isZh ? '现在没有人在等审核。' : 'No one is awaiting approval right now.');
+        setMsgs(prev => [...prev, { role: 'user', text }, { role: 'bot', text: hint }]);
+        return;
+      }
+    }
+
     // 1) Local, free, deterministic handlers.
     if (intent) {
       const botText = intent.special === 'roster' ? answerRoster(text) : (isZh ? intent.reply.zh : intent.reply.en);
@@ -216,6 +258,38 @@ const AutoAssistant: React.FC = () => {
     reader.readAsDataURL(file);
   };
 
+  // Actually perform a confirmed member action (mirrors the Approvals page).
+  const executeMemberAction = async (msgIndex: number, c: { kind: 'approve' | 'reject'; id: string; name: string }) => {
+    const cid = activeChurchId || church?.id;
+    try {
+      if (c.kind === 'approve') {
+        const { error } = await supabase.from('profiles').update({ role: 'Member' }).eq('id', c.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('profiles').delete().eq('id', c.id);
+        if (error) throw error;
+      }
+      localStorage.removeItem(`profile_${c.id}`);
+      setPending(prev => prev.filter(p => p.id !== c.id));
+      // Mark the confirm card as done so its buttons disappear, and report back.
+      setMsgs(prev => prev.map((m, i) => i === msgIndex && m.confirm ? { ...m, confirm: { ...m.confirm, done: true } } : m));
+      setMsgs(prev => [...prev, {
+        role: 'bot',
+        text: c.kind === 'approve'
+          ? (isZh ? `✅ 已批准 ${c.name},现在是正式成员了。` : `✅ Approved ${c.name} as a member.`)
+          : (isZh ? `✅ 已拒绝并移除 ${c.name} 的申请。` : `✅ Rejected and removed ${c.name}.`),
+      }]);
+    } catch (err: any) {
+      setMsgs(prev => [...prev, { role: 'bot', text: (isZh ? '操作失败:' : 'Failed: ') + (err?.message || 'error') }]);
+    }
+    if (cid) loadPending(cid);
+  };
+
+  const cancelConfirm = (msgIndex: number) => {
+    setMsgs(prev => prev.map((m, i) => i === msgIndex && m.confirm ? { ...m, confirm: { ...m.confirm, done: true } } : m));
+    setMsgs(prev => [...prev, { role: 'bot', text: isZh ? '好的,已取消,没有任何改动。' : 'Okay, cancelled — nothing changed.' }]);
+  };
+
   const go = (path: string) => { setAssistMode('manual'); navigate(path); };
 
   return (
@@ -261,6 +335,23 @@ const AutoAssistant: React.FC = () => {
                     {m.action.label}
                   </button>
                 )}
+                {m.confirm && !m.confirm.done && (
+                  <div className="self-start flex gap-2">
+                    <button
+                      onClick={() => executeMemberAction(i, m.confirm!)}
+                      className={`flex items-center gap-1.5 px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white shadow-lg active:scale-95 transition-all ${m.confirm.kind === 'reject' ? 'bg-error hover:opacity-90' : 'bg-primary hover:opacity-90'}`}
+                    >
+                      <span className="material-symbols-outlined text-sm">{m.confirm.kind === 'reject' ? 'delete' : 'check'}</span>
+                      {m.confirm.kind === 'reject' ? (isZh ? '确认拒绝' : 'Confirm reject') : (isZh ? '确认批准' : 'Confirm approve')}
+                    </button>
+                    <button
+                      onClick={() => cancelConfirm(i)}
+                      className="flex items-center gap-1.5 px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest bg-surface-container text-outline hover:text-on-surface active:scale-95 transition-all"
+                    >
+                      {isZh ? '取消' : 'Cancel'}
+                    </button>
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -294,8 +385,8 @@ const AutoAssistant: React.FC = () => {
       <div className="shrink-0 w-full max-w-3xl mx-auto px-6 pb-6 pt-2 border-t border-outline-variant/15">
         <div className="flex gap-2 overflow-x-auto no-scrollbar pb-3">
           {(isZh
-            ? ['帮我做这 3 首歌的 PPT', '这周日谁讲道', '帮我想主日流程']
-            : ['Make a PPT for these songs', 'Who preaches this Sunday?', 'Help plan the service']
+            ? ['谁在等审核', '帮我做这 3 首歌的 PPT', '这周日谁讲道']
+            : ['Who is awaiting approval?', 'Make a PPT for these songs', 'Who preaches this Sunday?']
           ).map(q => (
             <button key={q} onClick={() => send(q)} className="whitespace-nowrap px-4 py-1.5 rounded-full bg-white border border-outline-variant/20 text-[10px] font-black tracking-wide text-outline hover:border-primary hover:text-primary transition-all shadow-sm">
               {q}
