@@ -45,6 +45,44 @@ export function resolveSlideColors(
   return { lc: userLyricColor, tc: userTranslationColor, overlay: false };
 }
 
+export interface SlideLine { cn: string; en: string; }
+
+// Split paired lyrics into slides.
+//  • If the main lyrics contain a BLANK LINE between content, each block of
+//    lines (separated by blank lines) becomes ONE slide — so the user controls
+//    exactly how many lines each page holds (page 1 = 4 lines, page 2 = 2…).
+//  • Otherwise (no blank lines), fall back to a fixed `autoN` lines per slide.
+// Translation lines pair with the Nth non-blank lyric line.
+export function paginateLyrics(lyrics: string, english: string, autoN: number): SlideLine[][] {
+  const rawLines = (lyrics || '').split('\n');
+  const transLines = (english || '').split('\n').filter(l => l.trim().length > 0);
+  const hasBreaks = /\n[ \t]*\n/.test((lyrics || '').replace(/^\s+|\s+$/g, ''));
+
+  if (hasBreaks) {
+    const slides: SlideLine[][] = [];
+    let cur: SlideLine[] = [];
+    let ti = 0;
+    for (const line of rawLines) {
+      if (line.trim() === '') {
+        if (cur.length) { slides.push(cur); cur = []; }
+      } else {
+        cur.push({ cn: line, en: transLines[ti] || '' });
+        ti++;
+      }
+    }
+    if (cur.length) slides.push(cur);
+    return slides;
+  }
+
+  const cn = rawLines.filter(l => l.trim().length > 0);
+  const n = Math.max(1, autoN);
+  const slides: SlideLine[][] = [];
+  for (let i = 0; i < cn.length; i += n) {
+    slides.push(cn.slice(i, i + n).map((c, k) => ({ cn: c, en: transLines[i + k] || '' })));
+  }
+  return slides;
+}
+
 // How heavy the drop shadow behind slide text is. Lets users dial readability
 // up/down depending on how busy the background photo is.
 export type ShadowLevel = 'light' | 'medium' | 'strong';

@@ -9,7 +9,7 @@ import { logActivity } from '../services/activityService';
 import { googleDriveService } from '../services/googleDrive';
 import { supabase } from '../lib/supabase';
 import { isSuperAdmin, getActiveChurchId, isDemoChurch } from '../lib/permissions';
-import { resolveSlideColors, pptShadow, previewShadow, type ShadowLevel } from '../lib/pptTheme';
+import { resolveSlideColors, pptShadow, previewShadow, paginateLyrics, type ShadowLevel } from '../lib/pptTheme';
 
 import LyricsSheetModal from '../components/LyricsSheetModal';
 
@@ -966,37 +966,35 @@ export default function Songs() {
             });
           }
 
-          const lyricsLines = (song.lyrics || "").split('\n').filter((l: string) => l.trim().length > 0);
-          const englishLines = (song.englishLyrics || "").split('\n').filter((l: string) => l.trim().length > 0);
+          // A blank line in the lyrics starts a new slide, so the user controls
+          // how many lines each page holds; otherwise auto-chunk by `lps`.
+          const slidesContent = paginateLyrics(song.lyrics || "", song.englishLyrics || "", lps);
+          const lyricPt = Math.max(12, Math.min(72, lfs));
+          const transPt = Math.max(10, Math.min(48, tfs));
 
-          const pairsPerSlide = Math.max(1, lps);
-
-          for (let i = 0; i < lyricsLines.length; i += pairsPerSlide) {
+          slidesContent.forEach(slideLines => {
             let lSlide = pres.addSlide();
             setSlideBg(lSlide);
-            let currentY = 1.0;
-            for (let j = 0; j < pairsPerSlide; j++) {
-              const idx = i + j;
-              if (lyricsLines[idx]) {
-                const lyricPt = Math.max(12, Math.min(72, lfs));
-                const transPt = Math.max(10, Math.min(48, tfs));
-                lSlide.addText(lyricsLines[idx], {
-                  x: 0, y: currentY, w: "100%", h: 0.8,
-                  align: "center", fontFace: titleFont, fontSize: lyricPt, color: lc, bold: true,
+            // Vertically center the block so 2-line and 4-line pages both look good.
+            const blockH = slideLines.reduce((h, l) => h + 0.8 + (l.en ? 0.8 : 0), 0);
+            let currentY = Math.max(0.4, (5.625 - blockH) / 2);
+            slideLines.forEach(({ cn, en }) => {
+              lSlide.addText(cn, {
+                x: 0, y: currentY, w: "100%", h: 0.8,
+                align: "center", fontFace: titleFont, fontSize: lyricPt, color: lc, bold: true,
+                shadow: textShadow
+              });
+              currentY += 0.8;
+              if (en) {
+                lSlide.addText(en, {
+                  x: 0, y: currentY, w: "100%", h: 0.6,
+                  align: "center", fontFace: bodyFont, fontSize: transPt, color: tc, italic: true,
                   shadow: textShadow
                 });
                 currentY += 0.8;
-                if (englishLines[idx]) {
-                  lSlide.addText(englishLines[idx], {
-                    x: 0, y: currentY, w: "100%", h: 0.6,
-                    align: "center", fontFace: bodyFont, fontSize: transPt, color: tc, italic: true,
-                    shadow: textShadow
-                  });
-                  currentY += 0.8;
-                }
               }
-            }
-          }
+            });
+          });
         };
 
         const isMultiple = songsToExport.length > 1;
@@ -1923,7 +1921,7 @@ export default function Songs() {
                    <div>
                       <h2 className="text-2xl font-serif font-black text-[#2C2C2C]">{previewingSong.title} - {t('preview')}</h2>
                       <p className="text-[10px] font-bold text-outline/50 uppercase tracking-[0.2em]">
-                        {previewingSong.englishTitle} · {t('totalCountPages').replace('{count}', (Math.ceil((previewingSong.lyrics?.split('\n').filter((l: string) => l.trim()).length || 0) / linesPerSlide) + 1).toString())}
+                        {previewingSong.englishTitle} · {t('totalCountPages').replace('{count}', (paginateLyrics(previewingSong.lyrics || '', previewingSong.englishLyrics || '', linesPerSlide).length + (showSongTitle ? 1 : 0)).toString())}
                       </p>
                   </div>
                 </div>
@@ -1956,6 +1954,8 @@ export default function Songs() {
                         // is actually using its own bg (i.e. not unified to global).
                         const usingOwnBg = !unifyBackground && !!previewingSong.customBg;
                         const shadowCss = enableShadow ? previewShadow(shadowLevel) : 'none';
+                        // Same pagination the export uses: blank line = new page.
+                        const previewSlides = paginateLyrics(previewingSong.lyrics || '', previewingSong.englishLyrics || '', linesPerSlide);
                         return (<>
                       {/* Slide 1 - Cover (only when "with title" is selected) */}
                       {showSongTitle && (
@@ -1988,8 +1988,8 @@ export default function Songs() {
                       </div>
                       )}
 
-                      {/* Lyrics Slide Preview */}
-                      {Array.from({ length: Math.ceil((previewingSong.lyrics?.split('\n').filter((l: string) => l.trim()).length || 0) / linesPerSlide) }).map((_, slideIndex) => (
+                      {/* Lyrics Slide Preview — one card per paginated slide */}
+                      {(previewSlides.length ? previewSlides : [[{ cn: t('firstLinePlaceholder'), en: t('translatingLine') }]]).map((slideLines, slideIndex) => (
                         <div
                           key={slideIndex}
                           className="rounded-3xl p-10 flex flex-col justify-center text-center shadow-xl relative overflow-hidden mb-8"
@@ -2012,24 +2012,18 @@ export default function Songs() {
                           {hasImg && <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-black/50 to-black/40 pointer-events-none"></div>}
 
                           <div className="relative z-10 space-y-4">
-                            {Array.from({ length: linesPerSlide }).map((_, pairIdx) => {
-                              const lyricIdx = slideIndex * linesPerSlide + pairIdx;
-                              const cnLine = previewingSong.lyrics?.split('\n')[lyricIdx];
-                              const enLine = previewingSong.englishLyrics?.split('\n')[lyricIdx];
-
-                              if (!cnLine && slideIndex > 0) return null;
-
-                              return (
+                            {slideLines.map((line, pairIdx) => (
                                 <div key={pairIdx} className="space-y-1">
                                   <p className="font-serif font-black leading-tight" style={{ color: pc.lc, fontSize: `${Math.round(previewLfs * 0.78)}px`, textShadow: shadowCss }}>
-                                    {cnLine || (slideIndex === 0 && pairIdx === 0 ? t('firstLinePlaceholder') : "")}
+                                    {line.cn}
                                   </p>
+                                  {line.en && (
                                   <p className="italic font-normal tracking-wide" style={{ color: pc.tc, fontSize: `${Math.round(previewTfs * 0.78)}px`, textShadow: shadowCss }}>
-                                    {enLine || (slideIndex === 0 && pairIdx === 0 ? t('translatingLine') : "")}
+                                    {line.en}
                                   </p>
+                                  )}
                                 </div>
-                              );
-                            })}
+                            ))}
                           </div>
                           <div className="absolute bottom-4 left-4 text-[8px] text-white/40 font-black z-10 uppercase">SLIDE {slideIndex + 2} / {t('content')}</div>
                         </div>
