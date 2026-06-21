@@ -10,6 +10,12 @@ import { googleDriveService } from '../services/googleDrive';
 import { supabase } from '../lib/supabase';
 import { isSuperAdmin, getActiveChurchId, isDemoChurch } from '../lib/permissions';
 import { resolveSlideColors, pptShadow, previewShadow, paginateLyrics, type ShadowLevel } from '../lib/pptTheme';
+import { pinyin } from 'pinyin-pro';
+
+// Hanyu Pinyin for a Chinese line (tone marks). Non-Chinese text is kept as-is.
+const toPinyin = (s: string): string => {
+  try { return pinyin(s || '', { toneType: 'symbol' }); } catch { return ''; }
+};
 
 import LyricsSheetModal from '../components/LyricsSheetModal';
 
@@ -290,6 +296,8 @@ export default function Songs() {
   const [enableShadow, setEnableShadow] = useState(true);
   // How heavy that shadow is — light / medium / strong.
   const [shadowLevel, setShadowLevel] = useState<ShadowLevel>('medium');
+  // Show Hanyu Pinyin above each Chinese lyric line.
+  const [enablePinyin, setEnablePinyin] = useState(false);
   // Export-wide overrides: when ON, every song uses the GLOBAL font size /
   // background and any per-song customisation is ignored, so the whole deck
   // looks uniform.
@@ -321,6 +329,8 @@ export default function Songs() {
       if (s !== null) setEnableShadow(s === 'true');
       const sl = localStorage.getItem(churchKey('ppt_shadow_level'));
       if (sl === 'light' || sl === 'medium' || sl === 'strong') setShadowLevel(sl);
+      const py = localStorage.getItem(churchKey('ppt_pinyin'));
+      if (py !== null) setEnablePinyin(py === 'true');
     } catch {}
     // Restore the "unify font size / background" export preferences.
     try {
@@ -341,8 +351,9 @@ export default function Songs() {
     try {
       localStorage.setItem(churchKey('ppt_shadow'), String(enableShadow));
       localStorage.setItem(churchKey('ppt_shadow_level'), shadowLevel);
+      localStorage.setItem(churchKey('ppt_pinyin'), String(enablePinyin));
     } catch {}
-  }, [enableShadow, shadowLevel, activeChurchId]);
+  }, [enableShadow, shadowLevel, enablePinyin, activeChurchId]);
 
   // Persist the unify-font / unify-background export preferences.
   useEffect(() => {
@@ -972,13 +983,26 @@ export default function Songs() {
           const lyricPt = Math.max(12, Math.min(72, lfs));
           const transPt = Math.max(10, Math.min(48, tfs));
 
+          const pinyinPt = Math.max(10, Math.round(lyricPt * 0.45));
+          const pinyinH = enablePinyin ? 0.4 : 0;
           slidesContent.forEach(slideLines => {
             let lSlide = pres.addSlide();
             setSlideBg(lSlide);
             // Vertically center the block so 2-line and 4-line pages both look good.
-            const blockH = slideLines.reduce((h, l) => h + 0.8 + (l.en ? 0.8 : 0), 0);
-            let currentY = Math.max(0.4, (5.625 - blockH) / 2);
+            const blockH = slideLines.reduce((h, l) => h + pinyinH + 0.8 + (l.en ? 0.8 : 0), 0);
+            let currentY = Math.max(0.3, (5.625 - blockH) / 2);
             slideLines.forEach(({ cn, en }) => {
+              if (enablePinyin) {
+                const py = toPinyin(cn);
+                if (py) {
+                  lSlide.addText(py, {
+                    x: 0, y: currentY, w: "100%", h: pinyinH,
+                    align: "center", fontFace: bodyFont, fontSize: pinyinPt, color: lc,
+                    shadow: textShadow
+                  });
+                }
+                currentY += pinyinH;
+              }
               lSlide.addText(cn, {
                 x: 0, y: currentY, w: "100%", h: 0.8,
                 align: "center", fontFace: titleFont, fontSize: lyricPt, color: lc, bold: true,
@@ -2013,7 +2037,12 @@ export default function Songs() {
 
                           <div className="relative z-10 space-y-4">
                             {slideLines.map((line, pairIdx) => (
-                                <div key={pairIdx} className="space-y-1">
+                                <div key={pairIdx} className="space-y-0.5">
+                                  {enablePinyin && toPinyin(line.cn) && (
+                                    <p className="font-sans leading-tight" style={{ color: pc.lc, fontSize: `${Math.round(previewLfs * 0.40)}px`, textShadow: shadowCss, opacity: 0.92 }}>
+                                      {toPinyin(line.cn)}
+                                    </p>
+                                  )}
                                   <p className="font-serif font-black leading-tight" style={{ color: pc.lc, fontSize: `${Math.round(previewLfs * 0.78)}px`, textShadow: shadowCss }}>
                                     {line.cn}
                                   </p>
@@ -2275,6 +2304,21 @@ export default function Songs() {
                                ))}
                              </div>
                            )}
+
+                           {/* Pinyin above Chinese lyrics */}
+                           <button
+                             type="button"
+                             onClick={() => setEnablePinyin(v => !v)}
+                             className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all ${enablePinyin ? 'bg-emerald-50 border-emerald-500/40' : 'bg-[#F9F7F5] border-[#E5E0DA]/40 hover:border-emerald-500/40'}`}
+                           >
+                             <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-outline/60">
+                               <span className="material-symbols-outlined text-[16px]">translate</span>
+                               {isZh ? '拼音' : 'Pinyin'}
+                             </span>
+                             <span className={`relative w-10 h-5 rounded-full transition-all ${enablePinyin ? 'bg-emerald-500' : 'bg-neutral-300'}`}>
+                               <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${enablePinyin ? 'right-0.5' : 'left-0.5'}`}></span>
+                             </span>
+                           </button>
 
                            {/* Whole-deck uniformity — these apply to EVERY song on
                                export, overriding each song's own font size / background. */}
