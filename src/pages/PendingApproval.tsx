@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { supabase } from '../lib/supabase';
 import { Html5Qrcode } from 'html5-qrcode';
+import { applicationService } from '../services/applicationService';
 
 export default function PendingApproval() {
   const { signOut, user, profile, refreshProfile, church } = useAuth();
@@ -13,6 +14,31 @@ export default function PendingApproval() {
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showScanner, setShowScanner] = useState(false);
+  // Google users with no church can either join an existing one OR register a
+  // brand-new church (which files an application for the platform owner).
+  const [joinMode, setJoinMode] = useState<'join' | 'register'>('join');
+  const [newChurchName, setNewChurchName] = useState('');
+  const [regSubmitting, setRegSubmitting] = useState(false);
+  const [regDone, setRegDone] = useState(false);
+
+  const handleRegisterChurch = async () => {
+    if (!newChurchName.trim() || regSubmitting) return;
+    setRegSubmitting(true);
+    setError(null);
+    try {
+      await applicationService.submitApplication({
+        church_name: newChurchName.trim(),
+        leader_name: profile?.full_name || user?.user_metadata?.full_name || user?.email || 'Applicant',
+        email: user?.email || '',
+        phone: '',
+      });
+      setRegDone(true);
+    } catch (err: any) {
+      setError(err?.message || (isZh ? '提交失败,请重试' : 'Failed to submit, please try again'));
+    } finally {
+      setRegSubmitting(false);
+    }
+  };
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const scannerContainerId = "qr-reader-pending";
 
@@ -220,16 +246,45 @@ export default function PendingApproval() {
           </p>
 
           {!hasChurch ? (
+            regDone ? (
+              <div className="p-6 rounded-3xl bg-emerald-50 border border-emerald-200 text-center space-y-2">
+                <span className="material-symbols-outlined text-emerald-500 text-4xl">mark_email_read</span>
+                <p className="text-sm font-black text-emerald-900">{isZh ? '申请已提交!' : 'Application submitted!'}</p>
+                <p className="text-xs text-emerald-700/80 leading-relaxed">
+                  {isZh ? '我们已收到你的新教会申请,平台管理员审核通过后会通知你。' : "We've received your new-church application. The platform admin will review and notify you."}
+                </p>
+              </div>
+            ) : (
+            <>
+              {/* Join existing church  ·  Register a new one */}
+              <div className="flex gap-1 p-1 bg-surface-container rounded-2xl">
+                <button
+                  type="button"
+                  onClick={() => { setJoinMode('join'); setError(null); }}
+                  className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${joinMode === 'join' ? 'bg-white text-primary shadow-sm' : 'text-outline/50'}`}
+                >
+                  {isZh ? '加入教会' : 'Join'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setJoinMode('register'); setError(null); }}
+                  className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${joinMode === 'register' ? 'bg-white text-primary shadow-sm' : 'text-outline/50'}`}
+                >
+                  {isZh ? '注册新教会' : 'Register'}
+                </button>
+              </div>
+
+              {joinMode === 'join' ? (
             <form onSubmit={handleJoin} className="space-y-4">
               <div className="relative group">
-                <input 
+                <input
                   type="text"
                   placeholder={isZh ? "请输入教会加入码" : "Enter Church Join Code"}
                   value={joinCode}
                   onChange={e => setJoinCode(e.target.value)}
                   className="w-full bg-surface-container rounded-2xl py-4 px-6 text-center text-xl font-mono font-black tracking-[0.2em] border-2 border-transparent focus:border-primary outline-none transition-all placeholder:text-outline/40 placeholder:tracking-normal placeholder:font-sans placeholder:text-sm"
                 />
-                <button 
+                <button
                   type="button"
                   onClick={() => setShowScanner(true)}
                   className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-xl text-primary hover:bg-primary/10 transition-colors"
@@ -239,7 +294,7 @@ export default function PendingApproval() {
                 </button>
                 {error && <p className="mt-2 text-[10px] text-error font-bold">{error}</p>}
               </div>
-              <button 
+              <button
                 type="submit"
                 disabled={!joinCode.trim() || joining}
                 className="w-full bg-primary text-white font-black uppercase tracking-widest py-4 rounded-2xl shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-30 disabled:scale-100"
@@ -247,6 +302,30 @@ export default function PendingApproval() {
                 {isZh ? '申请加入' : 'Request to Join'}
               </button>
             </form>
+              ) : (
+            <form onSubmit={e => { e.preventDefault(); handleRegisterChurch(); }} className="space-y-4">
+              <input
+                type="text"
+                placeholder={isZh ? '新教会名称' : 'New church name'}
+                value={newChurchName}
+                onChange={e => setNewChurchName(e.target.value)}
+                className="w-full bg-surface-container rounded-2xl py-4 px-6 text-center text-base font-bold border-2 border-transparent focus:border-primary outline-none transition-all placeholder:text-outline/40 placeholder:font-sans"
+              />
+              <p className="text-[10px] text-outline/60 leading-relaxed px-2">
+                {isZh ? `将以 ${user?.email} 的名义提交申请,平台管理员审核通过后开通。` : `We'll file the application as ${user?.email}. The platform admin approves it.`}
+              </p>
+              {error && <p className="text-[10px] text-error font-bold">{error}</p>}
+              <button
+                type="submit"
+                disabled={!newChurchName.trim() || regSubmitting}
+                className="w-full bg-primary text-white font-black uppercase tracking-widest py-4 rounded-2xl shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-30 disabled:scale-100"
+              >
+                {regSubmitting ? (isZh ? '提交中…' : 'Submitting…') : (isZh ? '提交注册申请' : 'Submit Application')}
+              </button>
+            </form>
+              )}
+            </>
+            )
           ) : (
             <div className="p-5 rounded-3xl bg-amber-50 border border-amber-200 shadow-inner flex items-center justify-center gap-3">
                <div className="text-left">

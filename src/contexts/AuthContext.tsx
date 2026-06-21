@@ -361,6 +361,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (e) {
       console.warn('signOut timed out or failed, but local state already cleared', e);
     }
+    // Belt-and-suspenders: nuke any persisted Supabase auth token so a reload
+    // can't silently restore the session and bounce the user back in.
+    try {
+      Object.keys(localStorage)
+        .filter(k => k.startsWith('sb-') || k.includes('supabase.auth'))
+        .forEach(k => localStorage.removeItem(k));
+    } catch {}
     // Force redirect to login page
     window.location.href = '/';
   };
