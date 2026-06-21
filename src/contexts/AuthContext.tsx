@@ -188,12 +188,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const pendingCode = localStorage.getItem('pending_join_code');
         const pendingName = localStorage.getItem('pending_join_name');
         if (pendingCode) {
-          const { data: churchData } = await supabase
-            .from('churches').select('*').eq('code', pendingCode.toUpperCase()).maybeSingle();
+          // Resolve the join code via RPC (churches table is not publicly readable).
+          // The RPC returns the role the code grants (Staff / Member / Pending) — computed
+          // server-side, so a user can only get Staff if they actually have the staff code.
+          const { data: codeRows } = await supabase.rpc('validate_church_code', { p_code: pendingCode.toUpperCase() });
+          const churchData = Array.isArray(codeRows) ? codeRows[0] : codeRows;
           if (churchData) {
             const { data: createdProfile, error: createError } = await supabase
               .from('profiles')
-              .insert({ id: userId, email: userEmail, full_name: pendingName || userEmail?.split('@')[0], church_id: churchData.id, role: 'Pending' })
+              .insert({ id: userId, email: userEmail, full_name: pendingName || userEmail?.split('@')[0], church_id: churchData.id, role: churchData.role || 'Pending' })
               .select('*').single();
             if (!createError && createdProfile) {
               profileData = createdProfile;

@@ -67,14 +67,11 @@ export default function Login() {
           return;
         }
       } else {
-        // Validate church code first
-        const { data: churchData, error: churchCheckError } = await supabase
-          .from('churches')
-          .select('id')
-          .eq('code', churchCode)
-          .single();
+        // Validate church code via RPC (churches table is not publicly readable)
+        const { data: codeRows } = await supabase.rpc('validate_church_code', { p_code: churchCode.trim() });
+        const churchData = Array.isArray(codeRows) ? codeRows[0] : codeRows;
 
-        if (churchCheckError || !churchData) {
+        if (!churchData) {
           throw new Error(language.startsWith('zh') ? '无效的教会代码，请与管理员核实。' : 'Invalid church code. Please check with your administrator.');
         }
 
@@ -120,15 +117,12 @@ export default function Login() {
       localStorage.setItem('pending_join_code', churchCode.toUpperCase());
       localStorage.setItem('pending_join_name', name);
 
-      // Check if church code exists to prevent orphaned profiles
+      // Check if church code exists (via RPC) to prevent orphaned profiles
       try {
-        const { data: churchData, error: dbError } = await supabase
-          .from('churches')
-          .select('id')
-          .eq('code', churchCode.trim())
-          .maybeSingle();
-        
-        if (dbError || !churchData) {
+        const { data: codeRows } = await supabase.rpc('validate_church_code', { p_code: churchCode.trim() });
+        const churchData = Array.isArray(codeRows) ? codeRows[0] : codeRows;
+
+        if (!churchData) {
           setError(language.startsWith('zh') ? '该教代码不存在，请向您的教会管理员确认。' : 'This Church Code does not exist. Please verify with your admin.');
           setLoading(false);
           return;

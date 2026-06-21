@@ -62,58 +62,13 @@ export default function PendingApproval() {
     setJoining(true);
     setError(null);
     try {
-      // ── 1. Find church: try targeted server-side queries first (fast) ──────
-      let targetChurch: any = null;
-      let role = 'Pending';
-
-      // Staff code → join directly as Staff (these codes grant direct access,
-      // exactly as the "manage codes" screen warns).
-      const { data: staffMatch } = await supabase
-        .from('churches')
-        .select('*')
-        .eq('staff_join_code', code)
-        .maybeSingle();
-      if (staffMatch) { targetChurch = staffMatch; role = 'Staff'; }
-
-      // Member code → join directly as Member.
-      if (!targetChurch) {
-        const { data: memberMatch } = await supabase
-          .from('churches')
-          .select('*')
-          .eq('member_join_code', code)
-          .maybeSingle();
-        if (memberMatch) { targetChurch = memberMatch; role = 'Member'; }
-      }
-
-      // Standard church code → Pending (needs approval), UNLESS the church
-      // turned on "church code skips approval", in which case join as Member.
-      if (!targetChurch) {
-        const { data: codeMatch } = await supabase
-          .from('churches')
-          .select('*')
-          .eq('code', code)
-          .maybeSingle();
-        if (codeMatch) { targetChurch = codeMatch; role = codeMatch.feature_config?.code_auto_approve ? 'Member' : 'Pending'; }
-      }
-
-      // ── Fallback: scan all from localStorage-cached list ─────────────────
-      if (!targetChurch) {
-        const cached = localStorage.getItem('all_churches_cache');
-        if (cached) {
-          const list = JSON.parse(cached);
-          const found = list.find((c: any) =>
-            (c.staff_join_code && c.staff_join_code.toUpperCase() === code) ||
-            (c.member_join_code && c.member_join_code.toUpperCase() === code) ||
-            (c.code && c.code.toUpperCase() === code)
-          );
-          if (found) {
-            targetChurch = found;
-            if (found.staff_join_code && found.staff_join_code.toUpperCase() === code) role = 'Staff';
-            else if (found.member_join_code && found.member_join_code.toUpperCase() === code) role = 'Member';
-            else role = found.feature_config?.code_auto_approve ? 'Member' : 'Pending';
-          }
-        }
-      }
+      // ── 1. Resolve church + the role this code grants, via RPC ───────────
+      // The churches table is no longer publicly readable, so we ask a SECURITY
+      // DEFINER function. It matches the code against the main / staff / member
+      // codes server-side and returns the correct role (Staff/Member/Pending).
+      const { data: codeRows } = await supabase.rpc('validate_church_code', { p_code: code });
+      const targetChurch: any = Array.isArray(codeRows) ? codeRows[0] : codeRows;
+      const role: string = targetChurch?.role || 'Pending';
 
       if (!targetChurch) {
         throw new Error(isZh
