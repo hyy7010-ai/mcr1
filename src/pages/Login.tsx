@@ -341,7 +341,13 @@ export default function Login() {
                         }
                       });
 
-                      if (signUpError) throw signUpError;
+                      // The application is already filed at this point. If the
+                      // email is already a user (e.g. they signed in with Google
+                      // before), signUp fails with "already registered" — that's
+                      // NOT a failure of the application, so don't block on it.
+                      if (signUpError && !/already|registered|exist/i.test(signUpError.message || '')) {
+                        throw signUpError;
+                      }
 
                       setContactSuccess(true);
                       setTimeout(() => {
