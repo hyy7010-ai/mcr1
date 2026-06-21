@@ -255,7 +255,19 @@ export default function Approvals() {
       } catch {}
       alert(tr('Join codes updated!', language));
     } catch (err: any) {
-      alert((tr('Error: ', language)) + err.message);
+      const isZh = language.startsWith('zh');
+      const msg = err?.message || '';
+      // A unique-constraint hit means the code is already taken by another church.
+      if (err?.code === '23505' || /duplicate key|churches_code_key/i.test(msg)) {
+        const which = /staff_join_code/i.test(msg) ? (isZh ? '同工码' : 'Staff code')
+          : /member_join_code/i.test(msg) ? (isZh ? '会友码' : 'Member code')
+          : (isZh ? '普通教会码' : 'Church code');
+        alert(isZh
+          ? `${which}已被其它教会占用了,请换一个不一样的码(可以加几位数字让它更独特)。`
+          : `${which} is already used by another church. Pick a different one.`);
+      } else {
+        alert((tr('Error: ', language)) + msg);
+      }
     } finally {
       setProcessingId(null);
     }
