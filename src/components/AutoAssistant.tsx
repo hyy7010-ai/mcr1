@@ -6,14 +6,17 @@ import { useAuth } from '../contexts/AuthContext';
 import { useMode } from '../contexts/ModeContext';
 import { getActiveChurchId } from '../lib/permissions';
 import { rosterService } from '../services/rosterService';
+import { memberService } from '../services/memberService';
+import { askGraceAIV2 } from '../services/geminiService';
 
 // ── Auto-mode "all-in-one" assistant ─────────────────────────────────────────
-// When the user flips to Auto mode this IS the whole screen: just a chat box
-// they can hand any task to. To keep costs at zero while pre-funding, intent
-// routing is 100% local/rule-based — no paid API calls. It answers from real
-// church data where it can (e.g. names off the roster), does free work (stash a
-// ChatGPT-made background), and otherwise points to the right page. The hook for
-// a smarter LLM brain is left for when there's a budget.
+// When the user flips to Auto mode this IS the whole screen: a chat they hand
+// any task to. HYBRID BRAIN:
+//   • Things we can do for free & deterministically (PPT upload, roster names,
+//     navigation) are handled locally — no API cost.
+//   • Anything else falls through to Grace's AI brain (askGraceAIV2), which
+//     knows the church data and can answer + suggest navigation.
+// So it both KNOWS (AI) and DOES (local), while only paying for the hard cases.
 
 interface Msg {
   role: 'user' | 'bot';
@@ -28,7 +31,6 @@ interface Intent {
   special?: 'upload' | 'roster';
 }
 
-// Service roles, with the keywords people actually type and the label to show.
 const ROLE_LABELS: { keys: string[]; en: string; zh: string }[] = [
   { keys: ['主领唱', '主唱', '主领', '领唱', 'lead singer'], en: 'Lead Singer', zh: '主领唱' },
   { keys: ['敬拜', 'worship'], en: 'Worship', zh: '敬拜' },
@@ -37,9 +39,11 @@ const ROLE_LABELS: { keys: string[]; en: string; zh: string }[] = [
   { keys: ['乐手', '乐队', '司琴', 'musician', 'band'], en: 'Musician', zh: '乐手' },
 ];
 
+// Only the genuinely free/deterministic things stay local. Everything else
+// goes to the AI brain so the assistant feels truly all-knowing.
 const INTENTS: Intent[] = [
   {
-    keys: ['ppt', '幻灯', '投影', '做歌', '歌的', '歌词背景', '背景图', '排版', '敬拜ppt', 'slide'],
+    keys: ['ppt', '幻灯', '投影', '做歌', '歌的ppt', '歌词背景', '背景图', '排版', '敬拜ppt', 'slide'],
     reply: {
       zh: '好的,我来帮你做 PPT。把你在 ChatGPT 生成的背景图发给我(下面可上传),我会存进背景库;然后到「敬拜诗歌」里选歌、一键导出就行。',
       en: "Sure — let's build the PPT. Send me the background image you made in ChatGPT (upload below); I'll add it to the library, then pick songs in Songs and export in one click.",
@@ -48,43 +52,15 @@ const INTENTS: Intent[] = [
     special: 'upload',
   },
   {
-    keys: ['主唱', '主领', '领唱', '排班', '今天谁', '谁服侍', '谁讲道', '讲道', '证道', '敬拜', '招待', '乐手', '值班', 'roster', 'who leads', 'who is', 'who serves'],
+    keys: ['主唱', '主领', '领唱', '排班', '今天谁', '谁服侍', '谁讲道', '证道', '招待', '乐手', '值班', 'roster', 'who leads', 'who serves'],
     reply: { zh: '', en: '' }, // filled in live from roster data
     action: { label: { zh: '查看 / 编辑排班', en: 'Open Roster' }, path: '/app/roster' },
     special: 'roster',
   },
-  {
-    keys: ['周报', '报告', '月报', '总结', '汇报', 'report', 'weekly', 'summary'],
-    reply: {
-      zh: '周报我来汇总:本周排班、出席、奉献、代祷都会整理好。先去「数据看板」拿这周的数字,我帮你成稿。',
-      en: "I'll compile the weekly report — schedule, attendance, giving and prayer. Start from the Dashboard for this week's numbers and I'll draft it.",
-    },
-    action: { label: { zh: '打开看板', en: 'Open Dashboard' }, path: '/app/dashboard' },
-  },
-  {
-    keys: ['奉献', '收入', '财务', '金额', 'giving', 'finance', 'offering'],
-    reply: { zh: '奉献和财务在「奉献」页,可以登记、统计本周收入。', en: 'Giving & finance live in the Giving page — record and total this week there.' },
-    action: { label: { zh: '打开奉献', en: 'Open Giving' }, path: '/app/giving' },
-  },
-  {
-    keys: ['代祷', '祷告', '祈祷', 'prayer'],
-    reply: { zh: '代祷事项在「代祷墙」,可以发布和跟进。', en: 'Prayer requests live on the Prayer Wall — post and follow up there.' },
-    action: { label: { zh: '打开代祷墙', en: 'Open Prayer Wall' }, path: '/app/prayer' },
-  },
-  {
-    keys: ['名单', '会友', '成员', '联系', 'member', 'people', 'contact'],
-    reply: { zh: '会友名单在「会友」页,可以查找、编辑和看关系网。', en: 'The member directory is in Members — search, edit and view relationships.' },
-    action: { label: { zh: '打开会友', en: 'Open Members' }, path: '/app/members' },
-  },
-  {
-    keys: ['任务', '待办', 'task', 'todo'],
-    reply: { zh: '任务和待办在「任务」页。', en: 'Tasks & to-dos live in the Tasks page.' },
-    action: { label: { zh: '打开任务', en: 'Open Tasks' }, path: '/app/tasks' },
-  },
 ];
 
 const AutoAssistant: React.FC = () => {
-  const { isZh } = useLanguage();
+  const { isZh, language } = useLanguage();
   const { profile, church } = useAuth();
   const { setAssistMode } = useMode();
   const navigate = useNavigate();
@@ -92,26 +68,35 @@ const AutoAssistant: React.FC = () => {
 
   const [input, setInput] = useState('');
   const [showUpload, setShowUpload] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [roster, setRoster] = useState<any[]>([]);
+  const [members, setMembers] = useState<any[]>([]);
+  const [managers, setManagers] = useState<any[]>([]);
   const [msgs, setMsgs] = useState<Msg[]>([{
     role: 'bot',
     text: isZh
-      ? '我是你的全能助手。把任何事交给我:做 PPT、排班、周报、查名单… 直接说就行。\n\n例如:「帮我做这 3 首歌的 PPT」「今天主唱是谁」「周报帮我做好」。'
-      : "I'm your all-in-one assistant. Hand me anything — make a PPT, schedule, weekly report, look up members. Just ask.\n\nTry: \"Make a PPT for these 3 songs\", \"Who leads worship today?\", \"Draft the weekly report\".",
+      ? '我是你的全能助手,接入了 Grace 的 AI 大脑。把任何事交给我:做 PPT、排班、周报、查名单,或者直接问我任何问题。\n\n例如:「帮我做这 3 首歌的 PPT」「这周日谁讲道」「帮我想想母亲节主日的流程」。'
+      : "I'm your all-in-one assistant, powered by Grace's AI brain. Hand me anything — make a PPT, scheduling, reports, look up members, or just ask me anything.\n\nTry: \"Make a PPT for these songs\", \"Who preaches this Sunday?\", \"Help me plan a Mother's Day service\".",
   }]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Load the roster once so we can answer "who leads today" with a real name.
+  // Load church data so both the local roster answers AND the AI brain have
+  // real context to work from.
   useEffect(() => {
     const cid = activeChurchId || church?.id;
     if (!cid) return;
     rosterService.getAllRoster(cid).then(r => { if (Array.isArray(r)) setRoster(r); }).catch(() => {});
+    memberService.getMembers(cid).then(m => { if (Array.isArray(m)) setMembers(m); }).catch(() => {});
+    import('../lib/supabase').then(({ supabase }) => {
+      supabase.from('profiles').select('full_name, role').eq('church_id', cid).eq('role', 'Manager')
+        .then(({ data }: any) => { if (Array.isArray(data)) setManagers(data); });
+    }).catch(() => {});
   }, [activeChurchId, church?.id]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-  }, [msgs, showUpload]);
+  }, [msgs, showUpload, loading]);
 
   const matchIntent = (text: string): Intent | null => {
     const q = text.toLowerCase();
@@ -143,7 +128,6 @@ const AutoAssistant: React.FC = () => {
       return isZh ? `${whenZh}(${targetDate})的${role.zh}是 ${names.join('、')}。`
                   : `${role.en} for ${whenEn} (${targetDate}): ${names.join(', ')}.`;
     }
-    // No specific role asked → list everyone serving on that date.
     if (!onDate.length) return isZh ? `${targetDate} 还没有排班。` : `No roster for ${targetDate}.`;
     const lines = onDate.map(r => {
       const rl = ROLE_LABELS.find(x => x.en.toLowerCase() === (r.role || '').toLowerCase());
@@ -152,32 +136,66 @@ const AutoAssistant: React.FC = () => {
     return (isZh ? `${whenZh}(${targetDate})的服侍安排:\n` : `Roster for ${whenEn} (${targetDate}):\n`) + lines.join('\n');
   };
 
-  const send = (raw?: string) => {
-    const text = (raw ?? input).trim();
-    if (!text) return;
-    setInput('');
-    const intent = matchIntent(text);
-    let botText: string;
-    if (intent?.special === 'roster') {
-      botText = answerRoster(text);
-    } else if (intent) {
-      botText = isZh ? intent.reply.zh : intent.reply.en;
-    } else {
-      botText = isZh
-        ? '我可以帮你:做 PPT、排班/查主唱、周报、奉献、代祷、会友名单、任务。试着说说看要做哪一样?'
-        : 'I can help with: PPT, scheduling/lead singer, weekly report, giving, prayer, members, tasks. Which one?';
-    }
-    const botMsg: Msg = {
-      role: 'bot',
-      text: botText,
-      action: intent?.action ? { label: isZh ? intent.action.label.zh : intent.action.label.en, path: intent.action.path } : undefined,
-    };
-    setMsgs(prev => [...prev, { role: 'user', text }, botMsg]);
-    if (intent?.special === 'upload') setShowUpload(true);
+  // Condensed church knowledge fed to the AI brain.
+  const buildContext = (): string => {
+    const now = new Date();
+    const todayISO = now.toISOString().split('T')[0];
+    const weekday = now.toLocaleDateString('en-US', { weekday: 'long' });
+    const membersData = members.map(m => ({ name: m.name, status: m.status }));
+    const rosterData = roster.map(r => ({ date: r.date, person: r.profiles?.full_name || 'Assigned', role: r.role }));
+    return `Today: ${todayISO} (${weekday}). Church: ${church?.name || 'Unknown'}. ` +
+      `User: ${profile?.full_name || 'Guest'} (${profile?.role || 'Unknown'}). ` +
+      `Managers: ${managers.map(m => m.full_name).join(', ') || 'n/a'}.\n` +
+      `Roles map: Worship=敬拜, Lead Singer=主领唱, Preaching=讲道, Usher=招待, Musician=乐手.\n` +
+      `Members: ${JSON.stringify(membersData)}\n` +
+      `Service Schedule [{date,person,role}]: ${JSON.stringify(rosterData)}`;
   };
 
-  // Save a ChatGPT-made background straight into the PPT background library
-  // (same localStorage key Songs reads), then offer to jump there.
+  // Build {q,a} history (newest-first) from the visible conversation.
+  const buildHistory = (): { q: string; a: string }[] => {
+    const pairs: { q: string; a: string }[] = [];
+    for (let i = 0; i < msgs.length - 1; i++) {
+      if (msgs[i].role === 'user' && msgs[i + 1].role === 'bot') {
+        pairs.push({ q: msgs[i].text, a: msgs[i + 1].text });
+      }
+    }
+    return pairs.reverse();
+  };
+
+  const send = async (raw?: string) => {
+    const text = (raw ?? input).trim();
+    if (!text || loading) return;
+    setInput('');
+    const intent = matchIntent(text);
+
+    // 1) Local, free, deterministic handlers.
+    if (intent) {
+      const botText = intent.special === 'roster' ? answerRoster(text) : (isZh ? intent.reply.zh : intent.reply.en);
+      const action = intent.action ? { label: isZh ? intent.action.label.zh : intent.action.label.en, path: intent.action.path } : undefined;
+      setMsgs(prev => [...prev, { role: 'user', text }, { role: 'bot', text: botText, action }]);
+      if (intent.special === 'upload') setShowUpload(true);
+      return;
+    }
+
+    // 2) Everything else → Grace's AI brain (knows the church, can navigate).
+    const context = buildContext();
+    const history = buildHistory();
+    setMsgs(prev => [...prev, { role: 'user', text }]);
+    setLoading(true);
+    try {
+      const res = await askGraceAIV2(text, context, language, history);
+      setMsgs(prev => [...prev, {
+        role: 'bot',
+        text: res.message,
+        action: res.action ? { label: res.action.label, path: res.action.path } : undefined,
+      }]);
+    } catch {
+      setMsgs(prev => [...prev, { role: 'bot', text: isZh ? '我暂时连不上 AI,请稍后再试。' : "I couldn't reach the AI right now, please try again." }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleFile = (file: File) => {
     const reader = new FileReader();
     reader.onload = () => {
@@ -198,7 +216,6 @@ const AutoAssistant: React.FC = () => {
     reader.readAsDataURL(file);
   };
 
-  // Going to a page means leaving Auto mode so the user actually lands there.
   const go = (path: string) => { setAssistMode('manual'); navigate(path); };
 
   return (
@@ -214,7 +231,7 @@ const AutoAssistant: React.FC = () => {
           </div>
           <div>
             <h2 className="text-lg font-serif font-black text-on-surface leading-tight">{isZh ? '全能助手' : 'All-in-one Assistant'}</h2>
-            <p className="text-[9px] font-black uppercase tracking-[0.25em] text-outline/60">{isZh ? '自动式 · 帮你把事做完' : 'Auto · gets it done'}</p>
+            <p className="text-[9px] font-black uppercase tracking-[0.25em] text-outline/60">{isZh ? '自动式 · Grace AI 驱动' : 'Auto · powered by Grace AI'}</p>
           </div>
         </div>
         <button
@@ -249,6 +266,17 @@ const AutoAssistant: React.FC = () => {
           </div>
         ))}
 
+        {/* AI thinking indicator */}
+        {loading && (
+          <div className="flex items-center gap-3">
+            <div className="bg-white px-5 py-3.5 rounded-2xl rounded-tl-none border border-primary/10 shadow-sm flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: '0ms' }}></span>
+              <span className="h-2 w-2 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: '150ms' }}></span>
+              <span className="h-2 w-2 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: '300ms' }}></span>
+            </div>
+          </div>
+        )}
+
         {/* Image dropzone for ChatGPT-made backgrounds */}
         {showUpload && (
           <div className="rounded-2xl border-2 border-dashed border-primary/30 bg-primary/[0.03] p-5 text-center">
@@ -266,8 +294,8 @@ const AutoAssistant: React.FC = () => {
       <div className="shrink-0 w-full max-w-3xl mx-auto px-6 pb-6 pt-2 border-t border-outline-variant/15">
         <div className="flex gap-2 overflow-x-auto no-scrollbar pb-3">
           {(isZh
-            ? ['帮我做这 3 首歌的 PPT', '今天主唱是谁', '周报帮我做好']
-            : ['Make a PPT for these songs', 'Who leads today?', 'Draft the weekly report']
+            ? ['帮我做这 3 首歌的 PPT', '这周日谁讲道', '帮我想主日流程']
+            : ['Make a PPT for these songs', 'Who preaches this Sunday?', 'Help plan the service']
           ).map(q => (
             <button key={q} onClick={() => send(q)} className="whitespace-nowrap px-4 py-1.5 rounded-full bg-white border border-outline-variant/20 text-[10px] font-black tracking-wide text-outline hover:border-primary hover:text-primary transition-all shadow-sm">
               {q}
@@ -282,11 +310,11 @@ const AutoAssistant: React.FC = () => {
             placeholder={isZh ? '把事情交给我…' : 'Hand me a task…'}
             className="w-full bg-white border-2 border-outline-variant/20 rounded-2xl py-4 px-5 pr-14 text-sm font-medium focus:border-primary focus:ring-4 focus:ring-primary/5 outline-none shadow-sm"
           />
-          <button type="submit" disabled={!input.trim()} className="absolute right-2 top-2 bottom-2 px-4 rounded-xl bg-black text-white hover:bg-primary transition-all disabled:opacity-20 flex items-center">
+          <button type="submit" disabled={!input.trim() || loading} className="absolute right-2 top-2 bottom-2 px-4 rounded-xl bg-black text-white hover:bg-primary transition-all disabled:opacity-20 flex items-center">
             <span className="material-symbols-outlined">arrow_upward</span>
           </button>
         </form>
-        <p className="text-[8px] text-outline/40 text-center mt-2 uppercase tracking-widest">{isZh ? '本地免费处理 · 更强 AI 智能后续开启' : 'Free local routing · smarter AI coming soon'}</p>
+        <p className="text-[8px] text-outline/40 text-center mt-2 uppercase tracking-widest">{isZh ? '常用操作本地免费 · 复杂问题用 Grace AI' : 'Common tasks free · hard questions use Grace AI'}</p>
       </div>
     </motion.div>
   );
