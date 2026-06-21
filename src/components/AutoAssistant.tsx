@@ -318,7 +318,7 @@ const AutoAssistant: React.FC = () => {
       </div>
 
       {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto no-scrollbar w-full max-w-3xl mx-auto px-6 py-5 space-y-4">
+      <div ref={scrollRef} className={`flex-1 overflow-y-auto no-scrollbar w-full max-w-3xl mx-auto px-6 py-5 space-y-4 ${msgs.length <= 1 && !loading ? 'flex flex-col justify-center' : ''}`}>
         {msgs.map((m, i) => (
           <div key={i} className={m.role === 'user' ? 'flex justify-end' : 'flex flex-col gap-2'}>
             {m.role === 'user' ? (
