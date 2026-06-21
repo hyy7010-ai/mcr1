@@ -160,17 +160,13 @@ const AutoAssistant: React.FC = () => {
 
       <AnimatePresence>
         {open && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[160] bg-black/30 backdrop-blur-sm" onClick={() => setOpen(false)}
-            />
-            <motion.div
-              initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 40 }}
-              className="fixed bottom-0 right-0 top-0 z-[170] w-full sm:w-[440px] bg-surface border-l border-outline-variant/20 flex flex-col shadow-2xl"
-            >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[170] bg-surface flex flex-col"
+          >
               {/* Header */}
-              <div className="shrink-0 flex items-center justify-between px-6 py-5 border-b border-outline-variant/15">
+              <div className="shrink-0 w-full max-w-3xl mx-auto flex items-center justify-between px-6 py-5 border-b border-outline-variant/15">
                 <div className="flex items-center gap-3">
                   <div className="h-11 w-11 rounded-2xl bg-primary flex items-center justify-center text-white shadow-lg shadow-primary/20">
                     <span className="material-symbols-outlined filled text-2xl">auto_awesome</span>
@@ -186,7 +182,7 @@ const AutoAssistant: React.FC = () => {
               </div>
 
               {/* Messages */}
-              <div ref={scrollRef} className="flex-1 overflow-y-auto no-scrollbar px-6 py-5 space-y-4">
+              <div ref={scrollRef} className="flex-1 overflow-y-auto no-scrollbar w-full max-w-3xl mx-auto px-6 py-5 space-y-4">
                 {msgs.map((m, i) => (
                   <div key={i} className={m.role === 'user' ? 'flex justify-end' : 'flex flex-col gap-2'}>
                     {m.role === 'user' ? (
@@ -222,7 +218,7 @@ const AutoAssistant: React.FC = () => {
               </div>
 
               {/* Quick prompts + input */}
-              <div className="shrink-0 px-6 pb-6 pt-2 border-t border-outline-variant/15">
+              <div className="shrink-0 w-full max-w-3xl mx-auto px-6 pb-6 pt-2 border-t border-outline-variant/15">
                 <div className="flex gap-2 overflow-x-auto no-scrollbar pb-3">
                   {(isZh
                     ? ['帮我做这 3 首歌的 PPT', '今天主唱是谁', '周报帮我做好']
@@ -247,8 +243,7 @@ const AutoAssistant: React.FC = () => {
                 </form>
                 <p className="text-[8px] text-outline/40 text-center mt-2 uppercase tracking-widest">{isZh ? '本地免费处理 · 更强 AI 智能后续开启' : 'Free local routing · smarter AI coming soon'}</p>
               </div>
-            </motion.div>
-          </>
+          </motion.div>
         )}
       </AnimatePresence>
     </>
