@@ -62,35 +62,22 @@ export default function PendingApproval() {
     setJoining(true);
     setError(null);
     try {
-      // ── 1. Resolve church + the role this code grants, via RPC ───────────
-      // The churches table is no longer publicly readable, so we ask a SECURITY
-      // DEFINER function. It matches the code against the main / staff / member
-      // codes server-side and returns the correct role (Staff/Member/Pending).
-      const { data: codeRows } = await supabase.rpc('validate_church_code', { p_code: code });
-      const targetChurch: any = Array.isArray(codeRows) ? codeRows[0] : codeRows;
-      const role: string = targetChurch?.role || 'Pending';
+      // ── 1. Join via RPC ──────────────────────────────────────────────────
+      // The code is validated and the role/church_id are assigned SERVER-SIDE by
+      // join_church_with_code (SECURITY DEFINER). The client cannot self-assign a
+      // role: profiles writes are otherwise locked down by RLS + the guard trigger.
+      const { error: pErr } = await supabase.rpc('join_church_with_code', {
+        p_code: code,
+        p_full_name: profile?.full_name || user.user_metadata?.full_name || null,
+      });
 
-      if (!targetChurch) {
+      if (pErr) {
         throw new Error(isZh
           ? `无效的加入码"${code}"，请检查并重试`
           : `Invalid code "${code}". Please check and try again.`);
       }
 
-      // ── 2. Update profile ────────────────────────────────────────────────
-      const { error: pErr } = await supabase
-        .from('profiles')
-        .upsert({
-          id: user.id,
-          email: user.email,
-          full_name: profile?.full_name || user.user_metadata?.full_name || 'New Member',
-          church_id: targetChurch.id,
-          role: role,
-          updated_at: new Date().toISOString()
-        });
-
-      if (pErr) throw pErr;
-
-      // ── 3. Clear cache and refresh ────────────────────────────────────────
+      // ── 2. Clear cache and refresh ────────────────────────────────────────
       localStorage.removeItem(`profile_${user.id}`);
       localStorage.removeItem('pending_join_code');
       localStorage.removeItem('pending_join_name');

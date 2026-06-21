@@ -39,6 +39,17 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+// Escape user-supplied values before interpolating into email HTML, so an
+// applicant can't inject markup/links into the admin's notification email.
+function esc(v: unknown): string {
+  return String(v ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -71,10 +82,10 @@ Deno.serve(async (req: Request) => {
       <h2 style="color:#059669;margin:0 0 4px">New church application</h2>
       <p style="color:#555;margin:0 0 16px">Someone just applied — review and approve.</p>
       <table style="width:100%;border-collapse:collapse;font-size:14px">
-        <tr><td style="padding:6px 0;color:#888">Church</td><td style="padding:6px 0;font-weight:700">${churchName}</td></tr>
-        <tr><td style="padding:6px 0;color:#888">Applicant</td><td style="padding:6px 0;font-weight:700">${leader}</td></tr>
-        <tr><td style="padding:6px 0;color:#888">Email</td><td style="padding:6px 0">${email}</td></tr>
-        <tr><td style="padding:6px 0;color:#888">Phone</td><td style="padding:6px 0">${phone}</td></tr>
+        <tr><td style="padding:6px 0;color:#888">Church</td><td style="padding:6px 0;font-weight:700">${esc(churchName)}</td></tr>
+        <tr><td style="padding:6px 0;color:#888">Applicant</td><td style="padding:6px 0;font-weight:700">${esc(leader)}</td></tr>
+        <tr><td style="padding:6px 0;color:#888">Email</td><td style="padding:6px 0">${esc(email)}</td></tr>
+        <tr><td style="padding:6px 0;color:#888">Phone</td><td style="padding:6px 0">${esc(phone)}</td></tr>
       </table>
       <a href="${APP_URL}" style="display:inline-block;margin-top:20px;background:#111;color:#fff;text-decoration:none;padding:12px 24px;border-radius:12px;font-weight:700;font-size:13px">Review &amp; approve →</a>
     </div>`;

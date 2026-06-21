@@ -168,19 +168,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // (the approval looks them up by email and finds no row), so they'd be
       // stuck on the join screen forever.
       if (!profileData && !profileError && userEmail) {
-        const { data: approvedApp } = await supabase
-          .from('church_applications')
-          .select('*, churches!inner(id)')
-          .eq('email', userEmail)
-          .eq('status', 'Approved')
-          .maybeSingle();
-        if (approvedApp?.churches?.id) {
-          const { data: createdMgr, error: createMgrErr } = await supabase
-            .from('profiles')
-            .insert({ id: userId, email: userEmail, full_name: googleDisplayName || userEmail?.split('@')[0], church_id: approvedApp.churches.id, role: 'Manager' })
-            .select('*').single();
-          if (!createMgrErr && createdMgr) profileData = createdMgr;
-        }
+        // claim_approved_church (SECURITY DEFINER) links the caller to the church
+        // its approved application points to, and sets role=Manager — server-side,
+        // so it can't be forged from the client.
+        const { data: claimed } = await supabase.rpc('claim_approved_church');
+        const claimedProfile = Array.isArray(claimed) ? claimed[0] : claimed;
+        if (claimedProfile?.id) profileData = claimedProfile;
       }
 
       // New user with pending join code
@@ -188,21 +181,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const pendingCode = localStorage.getItem('pending_join_code');
         const pendingName = localStorage.getItem('pending_join_name');
         if (pendingCode) {
-          // Resolve the join code via RPC (churches table is not publicly readable).
-          // The RPC returns the role the code grants (Staff / Member / Pending) — computed
-          // server-side, so a user can only get Staff if they actually have the staff code.
-          const { data: codeRows } = await supabase.rpc('validate_church_code', { p_code: pendingCode.toUpperCase() });
-          const churchData = Array.isArray(codeRows) ? codeRows[0] : codeRows;
-          if (churchData) {
-            const { data: createdProfile, error: createError } = await supabase
-              .from('profiles')
-              .insert({ id: userId, email: userEmail, full_name: pendingName || userEmail?.split('@')[0], church_id: churchData.id, role: churchData.role || 'Pending' })
-              .select('*').single();
-            if (!createError && createdProfile) {
-              profileData = createdProfile;
-              localStorage.removeItem('pending_join_code');
-              localStorage.removeItem('pending_join_name');
-            }
+          // join_church_with_code (SECURITY DEFINER) validates the code and assigns
+          // role + church_id server-side. The role is computed from which code matched,
+          // so a user can only get Staff if they actually have the staff code.
+          const { data: joined, error: joinErr } = await supabase.rpc('join_church_with_code', {
+            p_code: pendingCode.toUpperCase(),
+            p_full_name: pendingName || null,
+          });
+          const joinedProfile = Array.isArray(joined) ? joined[0] : joined;
+          if (!joinErr && joinedProfile?.id) {
+            profileData = joinedProfile;
+            localStorage.removeItem('pending_join_code');
+            localStorage.removeItem('pending_join_name');
           }
         }
       }
@@ -211,18 +201,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // If profile exists but has no church yet, check for an approved application
       if (profileData && !profileData.church_id && userEmail) {
-        const { data: approvedApp } = await supabase
-          .from('church_applications')
-          .select('*, churches!inner(id)')
-          .eq('email', userEmail)
-          .eq('status', 'Approved')
-          .maybeSingle();
-        if (approvedApp?.churches?.id) {
-          await supabase.from('profiles')
-            .update({ role: 'Manager', church_id: approvedApp.churches.id })
-            .eq('id', userId);
-          profileData = { ...profileData, role: 'Manager', church_id: approvedApp.churches.id };
-        }
+        const { data: claimed } = await supabase.rpc('claim_approved_church');
+        const claimedProfile = Array.isArray(claimed) ? claimed[0] : claimed;
+        if (claimedProfile?.id) profileData = claimedProfile;
       }
 
       if (profileData) {

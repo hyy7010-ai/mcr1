@@ -293,7 +293,7 @@ export default function SuperAdmin() {
           .update({ role: 'Manager', church_id: newChurch.id })
           .eq('id', userData.id);
       }
-      await applicationService.updateStatus(appToApprove.id, "Approved", approveForm.name);
+      await applicationService.updateStatus(appToApprove.id, "Approved", approveForm.name, newChurch.id);
       await fetchData();
       setAppToApprove(null);
     } catch (err: any) {

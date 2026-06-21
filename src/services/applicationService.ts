@@ -37,10 +37,13 @@ export const applicationService = {
     return data || [];
   },
 
-  async updateStatus(id: string, status: 'Approved' | 'Rejected', finalName?: string) {
+  async updateStatus(id: string, status: 'Approved' | 'Rejected', finalName?: string, churchId?: string) {
     const updateData: any = { status };
     if (finalName) updateData.church_name = finalName;
-    
+    // Link the approved application to the church that was created for it, so a
+    // not-yet-registered applicant can be auto-linked on their first login.
+    if (churchId) updateData.church_id = churchId;
+
     const { error } = await supabase
       .from('church_applications')
       .update(updateData)
