@@ -9,11 +9,12 @@ import { isSuperAdmin, canManageChurch, canDoStaff, isDemoChurch, getActiveChurc
 import { socialService, AppNotification } from '../services/socialService';
 import { canSeeModule } from '../lib/featureModules';
 import OnboardingModal, { needsOnboarding } from './OnboardingModal';
+import AutoAssistant from './AutoAssistant';
 
 export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { mode, setMode } = useMode();
+  const { mode, setMode, assistMode, setAssistMode } = useMode();
   const { t, language, setLanguage, isZh } = useLanguage();
   const { user, signOut, church, profile, updateChurch } = useAuth();
   const [isModeOpen, setIsModeOpen] = useState(false);
@@ -441,6 +442,24 @@ export default function Layout() {
           </div>
 
           <div className="flex items-center gap-6">
+            {/* Manual / Auto mode switch — hand the whole app to the assistant */}
+            <div className="flex items-center p-1 rounded-full bg-surface-container-low border border-outline-variant/40 shadow-sm">
+              <button
+                onClick={() => setAssistMode('manual')}
+                className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1 ${assistMode === 'manual' ? 'bg-white text-on-surface shadow-sm' : 'text-outline/50 hover:text-outline'}`}
+              >
+                <span className="material-symbols-outlined text-[14px]">tune</span>
+                <span className="hidden sm:inline">{isZh ? '手动' : 'Manual'}</span>
+              </button>
+              <button
+                onClick={() => setAssistMode('auto')}
+                className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1 ${assistMode === 'auto' ? 'bg-primary text-white shadow-sm' : 'text-outline/50 hover:text-outline'}`}
+              >
+                <span className="material-symbols-outlined text-[14px]">auto_awesome</span>
+                <span className="hidden sm:inline">{isZh ? '自动' : 'Auto'}</span>
+              </button>
+            </div>
+
             {/* Search - Integrated */}
             <div className="relative hidden lg:block group">
               <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline text-[18px] group-focus-within:text-primary transition-colors">search</span>
@@ -615,6 +634,9 @@ export default function Layout() {
             )}
         </div>
       </div>
+
+      {/* Auto mode: the all-in-one assistant floats over every page */}
+      {assistMode === 'auto' && <AutoAssistant />}
     </div>
   );
 }

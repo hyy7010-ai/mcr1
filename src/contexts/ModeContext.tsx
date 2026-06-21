@@ -2,10 +2,15 @@ import { createContext, useContext, useState, ReactNode, useEffect } from 'react
 import { useAuth } from './AuthContext';
 
 export type Mode = 'Manager' | 'Staff' | 'Member';
+// How the user drives the app: 'manual' = the normal UI; 'auto' = hand
+// everything to the all-in-one assistant (a chat that actually does the work).
+export type AssistMode = 'manual' | 'auto';
 
 interface ModeContextType {
   mode: Mode;
   setMode: (mode: Mode) => void;
+  assistMode: AssistMode;
+  setAssistMode: (m: AssistMode) => void;
 }
 
 const ModeContext = createContext<ModeContextType | undefined>(undefined);
@@ -13,6 +18,19 @@ const ModeContext = createContext<ModeContextType | undefined>(undefined);
 export function ModeProvider({ children }: { children: ReactNode }) {
   const { profile } = useAuth();
   const [mode, setModeState] = useState<Mode>('Member');
+  const [assistMode, setAssistModeState] = useState<AssistMode>('manual');
+
+  // Restore the manual/auto preference per user.
+  useEffect(() => {
+    if (!profile) return;
+    const saved = localStorage.getItem(`assist_mode_${profile.id}`);
+    if (saved === 'auto' || saved === 'manual') setAssistModeState(saved);
+  }, [profile?.id]);
+
+  const setAssistMode = (m: AssistMode) => {
+    setAssistModeState(m);
+    if (profile) localStorage.setItem(`assist_mode_${profile.id}`, m);
+  };
 
   useEffect(() => {
     if (profile) {
@@ -49,7 +67,7 @@ export function ModeProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <ModeContext.Provider value={{ mode, setMode }}>
+    <ModeContext.Provider value={{ mode, setMode, assistMode, setAssistMode }}>
       {children}
     </ModeContext.Provider>
   );
