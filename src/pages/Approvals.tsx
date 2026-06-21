@@ -29,7 +29,9 @@ export default function Approvals() {
   const [customCodes, setCustomCodes] = useState({
     code: '',
     staff: '',
-    member: ''
+    member: '',
+    // When on, the普通教会码 lets people in directly (no manual approval).
+    autoApprove: false,
   });
   const [showJoinQR, setShowJoinQR] = useState<'Main' | 'Staff' | 'Member' | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -41,7 +43,8 @@ export default function Approvals() {
       setCustomCodes({
         code: church.code || '',
         staff: church.staff_join_code || '',
-        member: church.member_join_code || ''
+        member: church.member_join_code || '',
+        autoApprove: !!(church as any).feature_config?.code_auto_approve,
       });
     }
   }, [church]);
@@ -214,12 +217,15 @@ export default function Approvals() {
     setProcessingId('saving-codes');
     try {
       // Race against a 10s timeout so the button never stays stuck
+      // Merge so we don't clobber other feature flags stored in feature_config.
+      const mergedFeatureConfig = { ...((church as any)?.feature_config || {}), code_auto_approve: customCodes.autoApprove };
       const updatePromise = supabase
         .from('churches')
         .update({
           code: customCodes.code.trim().toUpperCase(),
           staff_join_code: customCodes.staff.trim().toUpperCase() || null,
           member_join_code: customCodes.member.trim().toUpperCase() || null,
+          feature_config: mergedFeatureConfig,
         })
         .eq('id', targetChurchId)
         .select();
@@ -239,7 +245,8 @@ export default function Approvals() {
         code: customCodes.code.trim().toUpperCase(),
         staff_join_code: customCodes.staff.trim().toUpperCase() || null,
         member_join_code: customCodes.member.trim().toUpperCase() || null,
-      });
+        feature_config: mergedFeatureConfig,
+      } as any);
       // Also update localStorage cache so PendingApproval can find the code instantly
       try {
         const cached = localStorage.getItem('all_churches_cache');
@@ -575,12 +582,27 @@ export default function Approvals() {
                   </div>
                 </div>
 
+                {/* 普通教会码 auto-approve toggle */}
+                <button
+                  type="button"
+                  onClick={() => setCustomCodes({ ...customCodes, autoApprove: !customCodes.autoApprove })}
+                  className={`w-full flex items-center justify-between gap-3 p-4 rounded-2xl border transition-all ${customCodes.autoApprove ? 'bg-primary/5 border-primary/30' : 'bg-surface-container border-outline-variant/30'}`}
+                >
+                  <span className="text-left">
+                    <span className="block text-xs font-black text-on-surface">{isZh ? '普通教会码免审核' : 'Church code skips approval'}</span>
+                    <span className="block text-[10px] text-outline/70 mt-0.5">{isZh ? '开启后,用普通教会码加入的人直接进,不用你审核(默认作为会友)。' : 'On: anyone joining with the church code gets in directly as a Member.'}</span>
+                  </span>
+                  <span className={`relative w-11 h-6 rounded-full transition-all shrink-0 ${customCodes.autoApprove ? 'bg-primary' : 'bg-neutral-300'}`}>
+                    <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${customCodes.autoApprove ? 'right-0.5' : 'left-0.5'}`}></span>
+                  </span>
+                </button>
+
                 <div className="p-4 rounded-2xl bg-amber-50 border border-amber-100 flex gap-3 items-start">
                    <span className="material-symbols-outlined text-amber-600 text-lg">info</span>
                    <p className="text-[10px] text-amber-700 font-medium leading-relaxed">
-                     {isZh 
-                       ? '同工码和会友码是极高权限的代码。任何人输入这些码都会直接获得相应的权限，请务必妥善保存并仅分发给受信任的人选。'
-                       : 'Staff & Member codes grant direct permissions. Anyone with these codes bypassing approval. Please only share with trusted people.'}
+                     {isZh
+                       ? '同工码和会友码是极高权限的代码。任何人输入这些码都会直接获得相应的权限（不经审核），请务必妥善保存并仅分发给受信任的人选。'
+                       : 'Staff & Member codes grant direct permissions (no approval). Please only share with trusted people.'}
                    </p>
                 </div>
               </div>

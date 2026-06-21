@@ -66,32 +66,34 @@ export default function PendingApproval() {
       let targetChurch: any = null;
       let role = 'Pending';
 
-      // Try staff_join_code — always Pending, manager will approve with proper role
+      // Staff code → join directly as Staff (these codes grant direct access,
+      // exactly as the "manage codes" screen warns).
       const { data: staffMatch } = await supabase
         .from('churches')
         .select('*')
         .eq('staff_join_code', code)
         .maybeSingle();
-      if (staffMatch) { targetChurch = staffMatch; role = 'Pending'; }
+      if (staffMatch) { targetChurch = staffMatch; role = 'Staff'; }
 
-      // Try member_join_code — always Pending
+      // Member code → join directly as Member.
       if (!targetChurch) {
         const { data: memberMatch } = await supabase
           .from('churches')
           .select('*')
           .eq('member_join_code', code)
           .maybeSingle();
-        if (memberMatch) { targetChurch = memberMatch; role = 'Pending'; }
+        if (memberMatch) { targetChurch = memberMatch; role = 'Member'; }
       }
 
-      // Try standard church code
+      // Standard church code → Pending (needs approval), UNLESS the church
+      // turned on "church code skips approval", in which case join as Member.
       if (!targetChurch) {
         const { data: codeMatch } = await supabase
           .from('churches')
           .select('*')
           .eq('code', code)
           .maybeSingle();
-        if (codeMatch) { targetChurch = codeMatch; role = 'Pending'; }
+        if (codeMatch) { targetChurch = codeMatch; role = codeMatch.feature_config?.code_auto_approve ? 'Member' : 'Pending'; }
       }
 
       // ── Fallback: scan all from localStorage-cached list ─────────────────
@@ -106,7 +108,9 @@ export default function PendingApproval() {
           );
           if (found) {
             targetChurch = found;
-            role = 'Pending'; // Always Pending — manager must approve
+            if (found.staff_join_code && found.staff_join_code.toUpperCase() === code) role = 'Staff';
+            else if (found.member_join_code && found.member_join_code.toUpperCase() === code) role = 'Member';
+            else role = found.feature_config?.code_auto_approve ? 'Member' : 'Pending';
           }
         }
       }
