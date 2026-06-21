@@ -1621,6 +1621,30 @@ export default function Songs() {
                         </p>
                       </div>
 
+                      {/* Quick export-time toggles — visible right before exporting. */}
+                      <div className="grid grid-cols-3 gap-2 w-full">
+                        {([
+                          { on: enablePinyin, set: () => setEnablePinyin(v => !v), icon: 'translate', label: isZh ? '拼音' : 'Pinyin' },
+                          { on: unifyFontSize, set: () => setUnifyFontSize(v => !v), icon: 'format_size', label: isZh ? '统一字号' : 'Unify Size' },
+                          { on: unifyBackground, set: () => setUnifyBackground(v => !v), icon: 'wallpaper', label: isZh ? '统一背景' : 'Same BG' },
+                        ]).map((tg) => (
+                          <button
+                            key={tg.label}
+                            type="button"
+                            onClick={tg.set}
+                            className={`flex items-center justify-between gap-1 px-3 py-2.5 rounded-2xl border transition-all ${tg.on ? 'bg-emerald-50 border-emerald-500/40' : 'bg-[#F9F7F5] border-[#E5E0DA]/40 hover:border-emerald-500/30'}`}
+                          >
+                            <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-outline/60">
+                              <span className="material-symbols-outlined text-[14px]">{tg.icon}</span>
+                              {tg.label}
+                            </span>
+                            <span className={`relative w-7 h-4 rounded-full transition-all shrink-0 ${tg.on ? 'bg-emerald-500' : 'bg-neutral-300'}`}>
+                              <span className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-all ${tg.on ? 'right-0.5' : 'left-0.5'}`}></span>
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+
                       <div className="flex flex-col gap-3 w-full">
                         {/* Per-song Ready PPT status summary */}
                         {weeklySetlist.length > 0 && (

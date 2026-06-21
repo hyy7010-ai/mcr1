@@ -162,6 +162,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      // New user (no profile row yet) whose church application was APPROVED →
+      // create their Manager profile and link the church. Without this, a Google
+      // user who registers a new church gets approved but is never linked
+      // (the approval looks them up by email and finds no row), so they'd be
+      // stuck on the join screen forever.
+      if (!profileData && !profileError && userEmail) {
+        const { data: approvedApp } = await supabase
+          .from('church_applications')
+          .select('*, churches!inner(id)')
+          .eq('email', userEmail)
+          .eq('status', 'Approved')
+          .maybeSingle();
+        if (approvedApp?.churches?.id) {
+          const { data: createdMgr, error: createMgrErr } = await supabase
+            .from('profiles')
+            .insert({ id: userId, email: userEmail, full_name: googleDisplayName || userEmail?.split('@')[0], church_id: approvedApp.churches.id, role: 'Manager' })
+            .select('*').single();
+          if (!createMgrErr && createdMgr) profileData = createdMgr;
+        }
+      }
+
       // New user with pending join code
       if (!profileData && !profileError) {
         const pendingCode = localStorage.getItem('pending_join_code');
