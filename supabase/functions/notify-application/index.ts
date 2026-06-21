@@ -27,7 +27,10 @@
 //
 // After that, every new application emails ADMIN_EMAIL automatically. Free.
 
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? "";
+// Strip anything that isn't a visible ASCII char — a Resend key is pure ASCII
+// (re_...), so this drops stray newlines / non-breaking spaces / smart quotes
+// that otherwise make the Authorization header an invalid ByteString and crash.
+const RESEND_API_KEY = (Deno.env.get("RESEND_API_KEY") ?? "").replace(/[^\x21-\x7e]/g, "");
 const ADMIN_EMAIL = Deno.env.get("ADMIN_EMAIL") ?? "";
 const FROM_EMAIL = Deno.env.get("FROM_EMAIL") ?? "GraceFlow <onboarding@resend.dev>";
 // Where the admin clicks to go review. Override via secret if your URL differs.
@@ -58,26 +61,29 @@ function json(body: unknown, status = 200) {
 }
 
 Deno.serve(async (req: Request) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+  // Wrap everything so the function returns actionable JSON instead of an opaque
+  // 500 — webhooks and the dashboard tester then show the real cause.
+  try {
+    if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+    if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
-  if (!RESEND_API_KEY || !ADMIN_EMAIL) {
-    return json({ error: "Server not configured: set RESEND_API_KEY and ADMIN_EMAIL secrets" }, 500);
-  }
+    if (!RESEND_API_KEY || !ADMIN_EMAIL) {
+      return json({ ok: false, stage: "config", error: "Missing RESEND_API_KEY and/or ADMIN_EMAIL secret" }, 200);
+    }
 
-  // The DB webhook posts { type, table, record, old_record }. Be tolerant of
-  // either that shape or a plain row if you call the function directly.
-  let payload: any = {};
-  try { payload = await req.json(); } catch { /* ignore */ }
-  const app = payload?.record ?? payload ?? {};
+    // The DB webhook posts { type, table, record, old_record }. Be tolerant of
+    // either that shape or a plain row if you call the function directly.
+    let payload: any = {};
+    try { payload = await req.json(); } catch { /* ignore */ }
+    const app = payload?.record ?? payload ?? {};
 
-  const churchName = app.church_name ?? "(unknown church)";
-  const leader = app.leader_name ?? "(unknown)";
-  const email = app.email ?? "—";
-  const phone = app.phone ?? "—";
+    const churchName = app.church_name ?? "(unknown church)";
+    const leader = app.leader_name ?? "(unknown)";
+    const email = app.email ?? "—";
+    const phone = app.phone ?? "—";
 
-  const subject = `🆕 New church application: ${churchName}`;
-  const html = `
+    const subject = `🆕 New church application: ${churchName}`;
+    const html = `
     <div style="font-family:system-ui,Arial,sans-serif;max-width:520px;margin:0 auto">
       <h2 style="color:#059669;margin:0 0 4px">New church application</h2>
       <p style="color:#555;margin:0 0 16px">Someone just applied — review and approve.</p>
@@ -90,19 +96,24 @@ Deno.serve(async (req: Request) => {
       <a href="${APP_URL}" style="display:inline-block;margin-top:20px;background:#111;color:#fff;text-decoration:none;padding:12px 24px;border-radius:12px;font-weight:700;font-size:13px">Review &amp; approve →</a>
     </div>`;
 
-  const resp = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${RESEND_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ from: FROM_EMAIL, to: [ADMIN_EMAIL], subject, html }),
-  });
+    const resp = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${RESEND_API_KEY.trim()}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ from: FROM_EMAIL, to: [ADMIN_EMAIL], subject, html }),
+    });
 
-  if (!resp.ok) {
     const detail = await resp.text();
-    return json({ error: "Resend failed", detail }, 502);
-  }
+    if (!resp.ok) {
+      // Surface Resend's exact status + message (e.g. 401 invalid key,
+      // 403 unverified domain) so the cause is obvious from the response.
+      return json({ ok: false, stage: "resend", resendStatus: resp.status, resendBody: detail, from: FROM_EMAIL, to: ADMIN_EMAIL }, 200);
+    }
 
-  return json({ ok: true });
+    return json({ ok: true, resendBody: detail });
+  } catch (e) {
+    return json({ ok: false, stage: "exception", error: String((e as Error)?.message ?? e) }, 200);
+  }
 });

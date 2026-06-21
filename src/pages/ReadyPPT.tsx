@@ -5,7 +5,13 @@ import { useMode } from '../contexts/ModeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { getActiveChurchId } from '../lib/permissions';
 import { supabase } from '../lib/supabase';
-import { resolveSlideColors, PPT_TEXT_SHADOW, PREVIEW_TEXT_SHADOW } from '../lib/pptTheme';
+import { resolveSlideColors, paginateLyrics, PPT_TEXT_SHADOW, PREVIEW_TEXT_SHADOW } from '../lib/pptTheme';
+import { pinyin } from 'pinyin-pro';
+
+// Hanyu Pinyin (tone marks) for a Chinese line. Non-Chinese text is kept as-is.
+const toPinyin = (s: string): string => {
+  try { return pinyin(s || '', { toneType: 'symbol' }); } catch { return ''; }
+};
 
 const DEFAULT_PPT_CATEGORIES = ['本周', '主日学', '敬拜', '讲道'];
 
@@ -383,6 +389,9 @@ export default function ReadyPPT() {
             const songLc = colors.lc.replace('#', '');
             const songTc = colors.tc.replace('#', '');
             const songLps = song.linesPerSlide || lps;
+            // Pinyin preference travels with the saved song data; fall back to the
+            // church-wide toggle set on the Songs page.
+            const songPinyin = song.pinyin ?? sd.pinyin ?? (localStorage.getItem(churchKey('ppt_pinyin')) === 'true');
             // Honor the saved shadow on/off preference (default on for older entries).
             const shadowOn = song.shadow !== undefined ? song.shadow : (sd.shadow !== undefined ? sd.shadow : true);
             const textShadow = shadowOn ? PPT_TEXT_SHADOW : undefined;
@@ -419,33 +428,47 @@ export default function ReadyPPT() {
               });
             }
 
-            const lyricsLines = (song.lyrics || '').split('\n').filter((l: string) => l.trim());
-            const englishLines = (song.englishLyrics || '').split('\n').filter((l: string) => l.trim());
-
-            for (let i = 0; i < lyricsLines.length; i += songLps) {
+            // A blank line in the lyrics starts a new slide, so each page can hold a
+            // different number of lines; otherwise auto-chunk by songLps.
+            const slidesContent = paginateLyrics(song.lyrics || '', song.englishLyrics || '', songLps);
+            const lyricPt = 36;
+            const transPt = 24;
+            const pinyinPt = Math.max(10, Math.round(lyricPt * 0.45));
+            const pinyinH = songPinyin ? 0.4 : 0;
+            slidesContent.forEach(slideLines => {
               let lSlide = pres.addSlide();
               setSlideBg(lSlide);
-              let currentY = 1.0;
-              for (let j = 0; j < songLps; j++) {
-                const idx = i + j;
-                if (lyricsLines[idx]) {
-                  lSlide.addText(lyricsLines[idx], {
-                    x: 0, y: currentY, w: "100%", h: 0.8,
-                    align: "center", fontFace: titleFont, fontSize: 36, color: songLc, bold: true,
+              // Vertically center the block so 2-line and 4-line pages both look good.
+              const blockH = slideLines.reduce((h, l) => h + pinyinH + 0.8 + (l.en ? 0.8 : 0), 0);
+              let currentY = Math.max(0.3, (5.625 - blockH) / 2);
+              slideLines.forEach(({ cn, en }) => {
+                if (songPinyin) {
+                  const py = toPinyin(cn);
+                  if (py) {
+                    lSlide.addText(py, {
+                      x: 0, y: currentY, w: "100%", h: pinyinH,
+                      align: "center", fontFace: bodyFont, fontSize: pinyinPt, color: songLc,
+                      shadow: textShadow
+                    });
+                  }
+                  currentY += pinyinH;
+                }
+                lSlide.addText(cn, {
+                  x: 0, y: currentY, w: "100%", h: 0.8,
+                  align: "center", fontFace: titleFont, fontSize: lyricPt, color: songLc, bold: true,
+                  shadow: textShadow
+                });
+                currentY += 0.8;
+                if (en) {
+                  lSlide.addText(en, {
+                    x: 0, y: currentY, w: "100%", h: 0.6,
+                    align: "center", fontFace: bodyFont, fontSize: transPt, color: songTc, italic: true,
                     shadow: textShadow
                   });
                   currentY += 0.8;
-                  if (englishLines[idx]) {
-                    lSlide.addText(englishLines[idx], {
-                      x: 0, y: currentY, w: "100%", h: 0.6,
-                      align: "center", fontFace: bodyFont, fontSize: 24, color: songTc, italic: true,
-                      shadow: textShadow
-                    });
-                    currentY += 0.8;
-                  }
                 }
-              }
-            }
+              });
+            });
           };
 
           const isMultiple = songsArr.length > 1;
@@ -814,13 +837,11 @@ export default function ReadyPPT() {
                            const shadowOn = song.shadow !== undefined ? song.shadow : (sd.shadow !== undefined ? sd.shadow : true);
                            const shadowCss = shadowOn ? PREVIEW_TEXT_SHADOW : 'none';
                            const songLps = song.linesPerSlide || lps;
-                           const lyricsLines = (song.lyrics || '').split('\n').filter((l: string) => l.trim());
-                           const englishLines = (song.englishLyrics || '').split('\n').filter((l: string) => l.trim());
+                           const songPinyin = song.pinyin ?? sd.pinyin ?? (localStorage.getItem(churchKey('ppt_pinyin')) === 'true');
                            const slides = [
                              { type: 'cover', title: song.title, sub: song.englishTitle },
-                             ...Array.from({ length: Math.ceil(lyricsLines.length / songLps) }, (_, i) => ({
-                               type: 'lyric', startIdx: i * songLps
-                             }))
+                             ...paginateLyrics(song.lyrics || '', song.englishLyrics || '', songLps)
+                               .map((lines: any) => ({ type: 'lyric', lines }))
                            ];
                            const bgStyle: React.CSSProperties = bg?.url
                              ? { backgroundImage: `url(${bg.url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
@@ -840,15 +861,13 @@ export default function ReadyPPT() {
                                      ) : (
                                        <>
                                          <p className="text-[8px] font-black uppercase tracking-widest text-white/30">SLIDE {idx + 1}</p>
-                                         {Array.from({ length: songLps }).map((_, j) => {
-                                           const lineIdx = (slide as any).startIdx + j;
-                                           return (
-                                             <div key={j}>
-                                               {lyricsLines[lineIdx] && <p className="text-2xl font-serif font-black" style={{ color: songLc, textShadow: shadowCss }}>{lyricsLines[lineIdx]}</p>}
-                                               {englishLines[lineIdx] && <p className="text-sm italic" style={{ color: songTc, textShadow: shadowCss }}>{englishLines[lineIdx]}</p>}
-                                             </div>
-                                           );
-                                         })}
+                                         {((slide as any).lines || []).map((ln: any, j: number) => (
+                                           <div key={j}>
+                                             {songPinyin && toPinyin(ln.cn) && <p className="text-xs" style={{ color: songLc, textShadow: shadowCss }}>{toPinyin(ln.cn)}</p>}
+                                             {ln.cn && <p className="text-2xl font-serif font-black" style={{ color: songLc, textShadow: shadowCss }}>{ln.cn}</p>}
+                                             {ln.en && <p className="text-sm italic" style={{ color: songTc, textShadow: shadowCss }}>{ln.en}</p>}
+                                           </div>
+                                         ))}
                                        </>
                                      )}
                                    </div>

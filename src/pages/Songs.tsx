@@ -385,7 +385,8 @@ export default function Songs() {
         translationColor,
         lyricFontSize,
         translationFontSize,
-        shadow: enableShadow
+        shadow: enableShadow,
+        pinyin: enablePinyin
       }
     };
     const songKey = churchKey('ready_ppt_songs');
@@ -1676,13 +1677,15 @@ export default function Songs() {
                                 linesPerSlide,
                                 lyricColor,
                                 translationColor,
-                                shadow: enableShadow
+                                shadow: enableShadow,
+                                pinyin: enablePinyin
                               })),
                               globalBg: selectedBg,
                               linesPerSlide,
                               lyricColor,
                               translationColor,
-                              shadow: enableShadow
+                              shadow: enableShadow,
+                              pinyin: enablePinyin
                             };
                             const newPpt = {
                               id: `p-${Date.now()}`,
