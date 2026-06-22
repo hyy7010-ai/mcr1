@@ -981,12 +981,14 @@ export default function Songs() {
           // A blank line in the lyrics starts a new slide, so the user controls
           // how many lines each page holds; otherwise auto-chunk by `lps`.
           const slidesContent = paginateLyrics(song.lyrics || "", song.englishLyrics || "", lps, song.pageLines);
-          const lyricPt = Math.max(12, Math.min(72, lfs));
-          const transPt = Math.max(10, Math.min(48, tfs));
-
-          const pinyinPt = Math.max(10, Math.round(lyricPt * 0.45));
+          const transRatio = lfs > 0 ? tfs / lfs : 0.5;
           const pinyinH = enablePinyin ? 0.4 : 0;
-          slidesContent.forEach(slideLines => {
+          slidesContent.forEach((slideLines, slideIdx) => {
+            // Per-page font size, unless "unify font size" forces the global one.
+            const pageLfs = (!unifyFontSize && song.pageFonts?.[slideIdx]) ? song.pageFonts[slideIdx] : lfs;
+            const lyricPt = Math.max(12, Math.min(72, pageLfs));
+            const transPt = Math.max(10, Math.min(48, Math.round(pageLfs * transRatio)));
+            const pinyinPt = Math.max(10, Math.round(lyricPt * 0.45));
             let lSlide = pres.addSlide();
             setSlideBg(lSlide);
             // Vertically center the block so 2-line and 4-line pages both look good.
@@ -2017,6 +2019,17 @@ export default function Songs() {
                           const updated = updatedWeekly.find(s => s.id === previewingSong.id);
                           if (updated) setPreviewingSong(updated);
                         };
+                        // Per-page font size: each page is manual unless "统一字号" is on.
+                        const transRatio = previewLfs > 0 ? previewTfs / previewLfs : 0.5;
+                        const pageFontFor = (idx: number) => unifyFontSize ? lyricFontSize : (previewingSong.pageFonts?.[idx] || previewLfs);
+                        const bumpFont = (idx: number, delta: number) => {
+                          const fonts = previewSlides.map((_, i) => previewingSong.pageFonts?.[i] || previewLfs);
+                          fonts[idx] = Math.max(16, Math.min(72, (fonts[idx] || previewLfs) + delta));
+                          const updatedWeekly = weeklySetlist.map(s => s.id === previewingSong.id ? { ...s, pageFonts: fonts } : s);
+                          setWeeklySetlist(updatedWeekly);
+                          const updated = updatedWeekly.find(s => s.id === previewingSong.id);
+                          if (updated) setPreviewingSong(updated);
+                        };
                         return (<>
                       {/* Slide 1 - Cover (only when "with title" is selected) */}
                       {showSongTitle && (
@@ -2072,28 +2085,37 @@ export default function Songs() {
                           )}
                           {hasImg && <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-black/50 to-black/40 pointer-events-none"></div>}
 
-                          {/* Per-page line-count control: pick how many lines THIS page holds */}
+                          {/* Per-page controls: line count (right) and font size (left).
+                              Font is manual per page unless "统一字号" is on. */}
                           {previewSlides.length > 0 && (
-                            <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 bg-black/45 backdrop-blur-sm rounded-full pl-2 pr-1 py-1 ring-1 ring-white/20">
-                              <button type="button" onClick={() => bumpPage(slideIndex, -1)} className="w-5 h-5 rounded-full hover:bg-white/20 text-white font-black text-sm leading-none flex items-center justify-center">−</button>
-                              <span className="text-[10px] font-black text-white tabular-nums tracking-wider">{slideLines.length}{isZh ? '行' : 'L'}</span>
-                              <button type="button" onClick={() => bumpPage(slideIndex, 1)} className="w-5 h-5 rounded-full hover:bg-white/20 text-white font-black text-sm leading-none flex items-center justify-center">＋</button>
-                            </div>
+                            <>
+                              <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 bg-black/45 backdrop-blur-sm rounded-full pl-2 pr-1 py-1 ring-1 ring-white/20">
+                                <button type="button" onClick={() => bumpPage(slideIndex, -1)} className="w-5 h-5 rounded-full hover:bg-white/20 text-white font-black text-sm leading-none flex items-center justify-center">−</button>
+                                <span className="text-[10px] font-black text-white tabular-nums tracking-wider">{slideLines.length}{isZh ? '行' : 'L'}</span>
+                                <button type="button" onClick={() => bumpPage(slideIndex, 1)} className="w-5 h-5 rounded-full hover:bg-white/20 text-white font-black text-sm leading-none flex items-center justify-center">＋</button>
+                              </div>
+                              <div className={`absolute top-3 left-3 z-20 flex items-center gap-1.5 backdrop-blur-sm rounded-full pl-2 pr-1 py-1 ring-1 ring-white/20 ${unifyFontSize ? 'bg-black/25 opacity-50' : 'bg-black/45'}`} title={unifyFontSize ? (isZh ? '已统一字号,关掉才能逐页调' : 'Unify font is on') : ''}>
+                                <span className="material-symbols-outlined text-white text-[13px]">format_size</span>
+                                <button type="button" disabled={unifyFontSize} onClick={() => bumpFont(slideIndex, -2)} className="w-5 h-5 rounded-full hover:bg-white/20 text-white font-black text-sm leading-none flex items-center justify-center disabled:opacity-40">−</button>
+                                <span className="text-[10px] font-black text-white tabular-nums">{Math.round(pageFontFor(slideIndex))}</span>
+                                <button type="button" disabled={unifyFontSize} onClick={() => bumpFont(slideIndex, 2)} className="w-5 h-5 rounded-full hover:bg-white/20 text-white font-black text-sm leading-none flex items-center justify-center disabled:opacity-40">＋</button>
+                              </div>
+                            </>
                           )}
 
                           <div className="relative z-10 space-y-4">
                             {slideLines.map((line, pairIdx) => (
                                 <div key={pairIdx} className="space-y-0.5">
                                   {enablePinyin && toPinyin(line.cn) && (
-                                    <p className="font-sans leading-tight" style={{ color: pc.lc, fontSize: `${Math.round(previewLfs * 0.40)}px`, textShadow: shadowCss, opacity: 0.92 }}>
+                                    <p className="font-sans leading-tight" style={{ color: pc.lc, fontSize: `${Math.round(pageFontFor(slideIndex) * 0.40)}px`, textShadow: shadowCss, opacity: 0.92 }}>
                                       {toPinyin(line.cn)}
                                     </p>
                                   )}
-                                  <p className="font-serif font-black leading-tight" style={{ color: pc.lc, fontSize: `${Math.round(previewLfs * 0.78)}px`, textShadow: shadowCss }}>
+                                  <p className="font-serif font-black leading-tight" style={{ color: pc.lc, fontSize: `${Math.round(pageFontFor(slideIndex) * 0.78)}px`, textShadow: shadowCss }}>
                                     {line.cn}
                                   </p>
                                   {line.en && (
-                                  <p className="italic font-normal tracking-wide" style={{ color: pc.tc, fontSize: `${Math.round(previewTfs * 0.78)}px`, textShadow: shadowCss }}>
+                                  <p className="italic font-normal tracking-wide" style={{ color: pc.tc, fontSize: `${Math.round(pageFontFor(slideIndex) * transRatio * 0.78)}px`, textShadow: shadowCss }}>
                                     {line.en}
                                   </p>
                                   )}
