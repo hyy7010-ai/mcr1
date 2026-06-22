@@ -53,9 +53,25 @@ export interface SlideLine { cn: string; en: string; }
 //    exactly how many lines each page holds (page 1 = 4 lines, page 2 = 2…).
 //  • Otherwise (no blank lines), fall back to a fixed `autoN` lines per slide.
 // Translation lines pair with the Nth non-blank lyric line.
-export function paginateLyrics(lyrics: string, english: string, autoN: number): SlideLine[][] {
+export function paginateLyrics(lyrics: string, english: string, autoN: number, pageLines?: number[]): SlideLine[][] {
   const rawLines = (lyrics || '').split('\n');
   const transLines = (english || '').split('\n').filter(l => l.trim().length > 0);
+
+  // Explicit per-page line counts win over everything (the user set each page's
+  // line count by hand). Page i takes pageLines[i] lines; the last value repeats
+  // for any pages beyond the array.
+  if (pageLines && pageLines.length) {
+    const cn = rawLines.filter(l => l.trim().length > 0);
+    const slides: SlideLine[][] = [];
+    let i = 0, p = 0;
+    while (i < cn.length) {
+      const n = Math.max(1, Math.round(pageLines[Math.min(p, pageLines.length - 1)] || autoN));
+      slides.push(cn.slice(i, i + n).map((c, k) => ({ cn: c, en: transLines[i + k] || '' })));
+      i += n; p++;
+    }
+    return slides;
+  }
+
   const hasBreaks = /\n[ \t]*\n/.test((lyrics || '').replace(/^\s+|\s+$/g, ''));
 
   if (hasBreaks) {

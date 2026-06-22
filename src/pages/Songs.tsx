@@ -980,7 +980,7 @@ export default function Songs() {
 
           // A blank line in the lyrics starts a new slide, so the user controls
           // how many lines each page holds; otherwise auto-chunk by `lps`.
-          const slidesContent = paginateLyrics(song.lyrics || "", song.englishLyrics || "", lps);
+          const slidesContent = paginateLyrics(song.lyrics || "", song.englishLyrics || "", lps, song.pageLines);
           const lyricPt = Math.max(12, Math.min(72, lfs));
           const transPt = Math.max(10, Math.min(48, tfs));
 
@@ -1972,7 +1972,7 @@ export default function Songs() {
                    <div>
                       <h2 className="text-2xl font-serif font-black text-[#2C2C2C]">{previewingSong.title} - {t('preview')}</h2>
                       <p className="text-[10px] font-bold text-outline/50 uppercase tracking-[0.2em]">
-                        {previewingSong.englishTitle} · {t('totalCountPages').replace('{count}', (paginateLyrics(previewingSong.lyrics || '', previewingSong.englishLyrics || '', linesPerSlide).length + (showSongTitle ? 1 : 0)).toString())}
+                        {previewingSong.englishTitle} · {t('totalCountPages').replace('{count}', (paginateLyrics(previewingSong.lyrics || '', previewingSong.englishLyrics || '', linesPerSlide, previewingSong.pageLines).length + (showSongTitle ? 1 : 0)).toString())}
                       </p>
                   </div>
                 </div>
@@ -2005,8 +2005,18 @@ export default function Songs() {
                         // is actually using its own bg (i.e. not unified to global).
                         const usingOwnBg = !unifyBackground && !!previewingSong.customBg;
                         const shadowCss = enableShadow ? previewShadow(shadowLevel) : 'none';
-                        // Same pagination the export uses: blank line = new page.
-                        const previewSlides = paginateLyrics(previewingSong.lyrics || '', previewingSong.englishLyrics || '', linesPerSlide);
+                        // Same pagination the export uses. Per-page line counts
+                        // (previewingSong.pageLines) win over blank-line breaks.
+                        const previewSlides = paginateLyrics(previewingSong.lyrics || '', previewingSong.englishLyrics || '', linesPerSlide, previewingSong.pageLines);
+                        // Change how many lines a given page holds, then re-flow.
+                        const bumpPage = (idx: number, delta: number) => {
+                          const counts = previewSlides.map(s => s.length);
+                          counts[idx] = Math.max(1, Math.min(8, (counts[idx] || linesPerSlide) + delta));
+                          const updatedWeekly = weeklySetlist.map(s => s.id === previewingSong.id ? { ...s, pageLines: counts } : s);
+                          setWeeklySetlist(updatedWeekly);
+                          const updated = updatedWeekly.find(s => s.id === previewingSong.id);
+                          if (updated) setPreviewingSong(updated);
+                        };
                         return (<>
                       {/* Slide 1 - Cover (only when "with title" is selected) */}
                       {showSongTitle && (
@@ -2061,6 +2071,15 @@ export default function Songs() {
                             />
                           )}
                           {hasImg && <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-black/50 to-black/40 pointer-events-none"></div>}
+
+                          {/* Per-page line-count control: pick how many lines THIS page holds */}
+                          {previewSlides.length > 0 && (
+                            <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 bg-black/45 backdrop-blur-sm rounded-full pl-2 pr-1 py-1 ring-1 ring-white/20">
+                              <button type="button" onClick={() => bumpPage(slideIndex, -1)} className="w-5 h-5 rounded-full hover:bg-white/20 text-white font-black text-sm leading-none flex items-center justify-center">−</button>
+                              <span className="text-[10px] font-black text-white tabular-nums tracking-wider">{slideLines.length}{isZh ? '行' : 'L'}</span>
+                              <button type="button" onClick={() => bumpPage(slideIndex, 1)} className="w-5 h-5 rounded-full hover:bg-white/20 text-white font-black text-sm leading-none flex items-center justify-center">＋</button>
+                            </div>
+                          )}
 
                           <div className="relative z-10 space-y-4">
                             {slideLines.map((line, pairIdx) => (
@@ -2417,8 +2436,15 @@ export default function Songs() {
                         {[1, 2, 3].map((val) => (
                           <button
                             key={val}
-                            onClick={() => setLinesPerSlide(val)}
-                            className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${linesPerSlide === val ? 'bg-white text-emerald-600 shadow-sm' : 'text-outline/40'}`}
+                            onClick={() => {
+                              setLinesPerSlide(val);
+                              // Picking a uniform N/page clears any per-page custom counts.
+                              const updatedWeekly = weeklySetlist.map(s => s.id === previewingSong.id ? { ...s, pageLines: undefined } : s);
+                              setWeeklySetlist(updatedWeekly);
+                              const updated = updatedWeekly.find(s => s.id === previewingSong.id);
+                              if (updated) setPreviewingSong(updated);
+                            }}
+                            className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${!previewingSong.pageLines && linesPerSlide === val ? 'bg-white text-emerald-600 shadow-sm' : 'text-outline/40'}`}
                           >
                             {val} {t('pairsPerSlide') || '对/页'}
                           </button>
