@@ -2222,6 +2222,11 @@ export default function Songs() {
                         <div className="space-y-4">
                            <div className="space-y-1">
                               <label className="text-[9px] font-black uppercase tracking-widest text-outline ml-1">{t('chineseLyrics')}</label>
+                              <p className="text-[10px] text-emerald-700/70 bg-emerald-50/60 rounded-lg px-2.5 py-1.5 leading-relaxed">
+                                💡 {isZh
+                                  ? '用 [副歌]、[主歌1] 标记段落;副歌重复时,只写一行 [副歌] 就会自动重复,不用再打一遍。'
+                                  : 'Tag sections with [副歌] / [Verse1]; to repeat a chorus, just write [副歌] on its own line — no need to retype it.'}
+                              </p>
                               <textarea
                                 value={previewingSong.lyrics}
                                 onChange={(e) => {
