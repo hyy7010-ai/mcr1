@@ -99,6 +99,67 @@ export function paginateLyrics(lyrics: string, english: string, autoN: number, p
   return slides;
 }
 
+// Expand repeated sections (verse/chorus) so a repeating chorus is typed ONCE.
+//   • Label a section with a [name] line on its own, e.g. [副歌] or [主歌1].
+//   • The FIRST [name] line + the lines under it (until a blank line or the next
+//     [marker]) DEFINE that section and are shown in place.
+//   • Any LATER [name] line on its own (no lines under it) is replaced by that
+//     section's lines — so "Verse1 / Chorus / Verse2 / Chorus" only needs the
+//     chorus written once, and it appears at every repeat for the presenter.
+// The English translation is paired to the Chinese by order and expanded in
+// lockstep, so cn/en stay aligned. No markers → returned unchanged.
+export function expandSongSections(lyrics: string, english: string): { lyrics: string; english: string } {
+  if (!/^\s*\[[^\]]+\]\s*$/m.test(lyrics || '')) return { lyrics, english };
+
+  const cnLines = (lyrics || '').split('\n');
+  const enQueue = (english || '').split('\n').filter(l => l.trim().length > 0);
+  let ei = 0;
+
+  const isMarker = (l: string) => /^\s*\[[^\]]+\]\s*$/.test(l);
+  const nameOf = (l: string) => l.trim().replace(/^\[|\]$/g, '').trim().toLowerCase();
+
+  type Pair = { cn: string; en: string };
+  const sections = new Map<string, Pair[]>();
+  // output stream; `null` marks a section break (becomes a blank line)
+  const out: (Pair | null)[] = [];
+  let defining: string | null = null;
+
+  for (const line of cnLines) {
+    if (isMarker(line)) {
+      const name = nameOf(line);
+      out.push(null);
+      if (sections.has(name)) {
+        // reference → insert the section's lines
+        for (const p of sections.get(name)!) out.push(p);
+        out.push(null);
+        defining = null;
+      } else {
+        sections.set(name, []);
+        defining = name;
+      }
+    } else if (line.trim() === '') {
+      out.push(null);
+      defining = null;
+    } else {
+      const pair: Pair = { cn: line, en: enQueue[ei++] || '' };
+      out.push(pair);
+      if (defining) sections.get(defining)!.push(pair);
+    }
+  }
+
+  // re-emit, collapsing consecutive breaks into a single blank line
+  const cnOut: string[] = []; const enOut: string[] = [];
+  let lastBlank = true;
+  for (const item of out) {
+    if (item === null) {
+      if (!lastBlank) { cnOut.push(''); enOut.push(''); lastBlank = true; }
+    } else {
+      cnOut.push(item.cn); enOut.push(item.en); lastBlank = false;
+    }
+  }
+  return { lyrics: cnOut.join('\n').trim(), english: enOut.join('\n').trim() };
+}
+
 // How heavy the drop shadow behind slide text is. Lets users dial readability
 // up/down depending on how busy the background photo is.
 export type ShadowLevel = 'light' | 'medium' | 'strong';

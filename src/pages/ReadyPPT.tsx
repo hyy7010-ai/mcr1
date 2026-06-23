@@ -5,7 +5,7 @@ import { useMode } from '../contexts/ModeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { getActiveChurchId } from '../lib/permissions';
 import { supabase } from '../lib/supabase';
-import { resolveSlideColors, paginateLyrics, PPT_TEXT_SHADOW, PREVIEW_TEXT_SHADOW } from '../lib/pptTheme';
+import { resolveSlideColors, paginateLyrics, expandSongSections, PPT_TEXT_SHADOW, PREVIEW_TEXT_SHADOW } from '../lib/pptTheme';
 import { pinyin } from 'pinyin-pro';
 
 // Hanyu Pinyin (tone marks) for a Chinese line. Non-Chinese text is kept as-is.
@@ -428,9 +428,10 @@ export default function ReadyPPT() {
               });
             }
 
-            // A blank line in the lyrics starts a new slide, so each page can hold a
-            // different number of lines; otherwise auto-chunk by songLps.
-            const slidesContent = paginateLyrics(song.lyrics || '', song.englishLyrics || '', songLps);
+            // Expand repeated [副歌]/[主歌] sections, then paginate (blank line =
+            // new slide; otherwise auto-chunk by songLps).
+            const _exp = expandSongSections(song.lyrics || '', song.englishLyrics || '');
+            const slidesContent = paginateLyrics(_exp.lyrics, _exp.english, songLps);
             const lyricPt = 36;
             const transPt = 24;
             const pinyinPt = Math.max(10, Math.round(lyricPt * 0.45));
@@ -840,7 +841,7 @@ export default function ReadyPPT() {
                            const songPinyin = song.pinyin ?? sd.pinyin ?? (localStorage.getItem(churchKey('ppt_pinyin')) === 'true');
                            const slides = [
                              { type: 'cover', title: song.title, sub: song.englishTitle },
-                             ...paginateLyrics(song.lyrics || '', song.englishLyrics || '', songLps)
+                             ...(() => { const e = expandSongSections(song.lyrics || '', song.englishLyrics || ''); return paginateLyrics(e.lyrics, e.english, songLps); })()
                                .map((lines: any) => ({ type: 'lyric', lines }))
                            ];
                            const bgStyle: React.CSSProperties = bg?.url

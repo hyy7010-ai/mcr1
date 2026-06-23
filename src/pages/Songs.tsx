@@ -9,7 +9,7 @@ import { logActivity } from '../services/activityService';
 import { googleDriveService } from '../services/googleDrive';
 import { supabase } from '../lib/supabase';
 import { isSuperAdmin, getActiveChurchId, isDemoChurch } from '../lib/permissions';
-import { resolveSlideColors, pptShadow, previewShadow, paginateLyrics, type ShadowLevel } from '../lib/pptTheme';
+import { resolveSlideColors, pptShadow, previewShadow, paginateLyrics, expandSongSections, type ShadowLevel } from '../lib/pptTheme';
 import { pinyin } from 'pinyin-pro';
 
 // Hanyu Pinyin for a Chinese line (tone marks). Non-Chinese text is kept as-is.
@@ -978,9 +978,10 @@ export default function Songs() {
             });
           }
 
-          // A blank line in the lyrics starts a new slide, so the user controls
-          // how many lines each page holds; otherwise auto-chunk by `lps`.
-          const slidesContent = paginateLyrics(song.lyrics || "", song.englishLyrics || "", lps, song.pageLines);
+          // Expand repeated [副歌]/[主歌] sections first (chorus typed once),
+          // then paginate. A blank line starts a new slide; otherwise chunk by lps.
+          const exp = expandSongSections(song.lyrics || "", song.englishLyrics || "");
+          const slidesContent = paginateLyrics(exp.lyrics, exp.english, lps, song.pageLines);
           const transRatio = lfs > 0 ? tfs / lfs : 0.5;
           const pinyinH = enablePinyin ? 0.4 : 0;
           slidesContent.forEach((slideLines, slideIdx) => {
@@ -1974,7 +1975,7 @@ export default function Songs() {
                    <div>
                       <h2 className="text-2xl font-serif font-black text-[#2C2C2C]">{previewingSong.title} - {t('preview')}</h2>
                       <p className="text-[10px] font-bold text-outline/50 uppercase tracking-[0.2em]">
-                        {previewingSong.englishTitle} · {t('totalCountPages').replace('{count}', (paginateLyrics(previewingSong.lyrics || '', previewingSong.englishLyrics || '', linesPerSlide, previewingSong.pageLines).length + (showSongTitle ? 1 : 0)).toString())}
+                        {previewingSong.englishTitle} · {t('totalCountPages').replace('{count}', (() => { const e = expandSongSections(previewingSong.lyrics || '', previewingSong.englishLyrics || ''); return (paginateLyrics(e.lyrics, e.english, linesPerSlide, previewingSong.pageLines).length + (showSongTitle ? 1 : 0)).toString(); })())}
                       </p>
                   </div>
                 </div>
@@ -2007,9 +2008,10 @@ export default function Songs() {
                         // is actually using its own bg (i.e. not unified to global).
                         const usingOwnBg = !unifyBackground && !!previewingSong.customBg;
                         const shadowCss = enableShadow ? previewShadow(shadowLevel) : 'none';
-                        // Same pagination the export uses. Per-page line counts
-                        // (previewingSong.pageLines) win over blank-line breaks.
-                        const previewSlides = paginateLyrics(previewingSong.lyrics || '', previewingSong.englishLyrics || '', linesPerSlide, previewingSong.pageLines);
+                        // Same pagination the export uses: expand repeated
+                        // sections first, then per-page line counts win over breaks.
+                        const previewExp = expandSongSections(previewingSong.lyrics || '', previewingSong.englishLyrics || '');
+                        const previewSlides = paginateLyrics(previewExp.lyrics, previewExp.english, linesPerSlide, previewingSong.pageLines);
                         // Change how many lines a given page holds, then re-flow.
                         const bumpPage = (idx: number, delta: number) => {
                           const counts = previewSlides.map(s => s.length);
