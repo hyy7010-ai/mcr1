@@ -143,24 +143,41 @@ export const DEFAULT_ROSTER_ROLES = ['讲员', '主领', '司琴', '音响', '�
 const ROSTER_ROLES = DEFAULT_ROSTER_ROLES;
 
 const LIFE: { kind: string; data: any; author_name?: string }[] = [
-  { kind: 'notice', data: { title: '本周主日因暴雨改为线上聚会', body: '气象局已发布暴雨预警。主日上午 10:00 请从教会公众号进入线上聚会室，爱筵取消。', level: 'urgent' }, author_name: '陈约翰 John Chen' },
+  { kind: 'notice', data: { title: '本周主日因暴雨改为线上聚会', body: '气象局已发布暴雨预警。主日上午 10:00 请从教会公众号进入线上聚会室，爱筵取消。行动不便的长者若需要接送，请联系许恩光弟兄。', level: 'urgent' }, author_name: '陈约翰 John Chen' },
   { kind: 'notice', data: { title: '冬令营招募同工', body: '7 月 12–14 日青年冬令营，招募厨务、活动、摄影同工各 2 名，请向王大卫报名。', level: 'info' }, author_name: '王大卫 David Wang' },
+  { kind: 'notice', data: { title: '停车场施工，本月改停后街', body: '教会停车场重铺，预计三周。主日请停在 Forest Rd 后街，招待同工会引导。', level: 'info' }, author_name: '黄喜乐 Joy Huang' },
 
-  { kind: 'course', data: { title: '系统神学导读班', speaker: '陈约翰 牧师', time: '每周三 19:30，共 8 周', place: '副堂 201', capacity: 20, outline: '第一课：启示论\n第二课：神论\n第三课：基督论\n第四课：救恩论' }, author_name: '陈约翰 John Chen' },
-  { kind: 'course', data: { title: '新信徒门徒成长班', speaker: '李美玲 传道', time: '每周日 13:00，共 6 周', place: '小堂', capacity: 12, outline: '认识救恩、读经方法、祷告生活、教会生活、奉献与服事、传福音。' }, author_name: '李美玲 Mary Li' },
-  { kind: 'course', data: { title: '敬拜团新人训练', speaker: '林恩慈', time: '每周六 15:00，共 4 周', place: '敬拜厅', capacity: 8, outline: '敬拜的心态、基本乐理、团队默契、主日流程实操。' }, author_name: '林恩慈 Grace Lin' },
+  { kind: 'course', data: { title: '系统神学导读班', speaker: '陈约翰 牧师', time: '每周三 19:30，共 8 周', place: '副堂 201', capacity: 20, outline: '第一课：启示论 — 神如何向人说话\n第二课：神论 — 三位一体\n第三课：基督论 — 道成肉身\n第四课：救恩论 — 因信称义\n第五课：圣灵论\n第六课：教会论\n第七课：末世论\n第八课：总复习与答疑' }, author_name: '陈约翰 John Chen' },
+  { kind: 'course', data: { title: '新信徒门徒成长班', speaker: '李美玲 传道', time: '每周日 13:00，共 6 周', place: '小堂', capacity: 12, outline: '认识救恩、读经方法、祷告生活、教会生活、奉献与服事、传福音。每课有作业，鼓励带一位朋友同来。' }, author_name: '李美玲 Mary Li' },
+  { kind: 'course', data: { title: '敬拜团新人训练', speaker: '林恩慈', time: '每周六 15:00，共 4 周', place: '敬拜厅', capacity: 8, outline: '敬拜的心态、基本乐理、团队默契、主日流程实操。不要求会看谱，但要能稳定出席。' }, author_name: '林恩慈 Grace Lin' },
+  { kind: 'course', data: { title: '婚前辅导（一对一）', speaker: '陈约翰牧师夫妇', time: '预约制，共 5 次', place: '牧师办公室', capacity: 6, outline: '原生家庭、沟通与冲突、金钱观、性与亲密、信仰与家庭方向。预备结婚的弟兄姊妹请提前三个月预约。' }, author_name: '陈约翰 John Chen' },
+  { kind: 'course', data: { title: '长者智能手机班', speaker: '郑安德', time: '每月第二个周六 14:00', place: '副堂', capacity: 15, outline: '教长辈用微信、看线上聚会、用这个 App 签到和看周报。青年团契陪伴一对一。' }, author_name: '郑安德 Andrew Zheng' },
 
-  { kind: 'resource', data: { cat: 'prep',   title: '主日崇拜流程表（模板）', note: '含诗歌、经文、报告顺序', url: '' } },
-  { kind: 'resource', data: { cat: 'sermon', title: '罗马书 8 章讲道大纲',    note: '陈约翰 牧师', url: '' } },
-  { kind: 'resource', data: { cat: 'group',  title: '小组查经手册 · 约翰福音', note: '共 21 课，附讨论问题', url: '' } },
-  { kind: 'resource', data: { cat: 'misc',   title: '教会场地借用申请表',      note: '婚礼、追思、外借请提前两周', url: '' } },
+  { kind: 'resource', data: { cat: 'prep',   title: '主日崇拜流程表（模板）',   note: '含诗歌、经文、报告顺序，同工共用' } },
+  { kind: 'resource', data: { cat: 'prep',   title: '圣餐主日流程与注意事项',   note: '每月首主日适用' } },
+  { kind: 'resource', data: { cat: 'prep',   title: '受洗礼流程与誓词',         note: '含受洗者名单登记表' } },
+  { kind: 'resource', data: { cat: 'sermon', title: '罗马书 8 章讲道大纲',      note: '陈约翰 牧师' } },
+  { kind: 'resource', data: { cat: 'sermon', title: '罗马书系列 · 全 16 讲索引', note: '按章节整理，含每讲录音链接' } },
+  { kind: 'resource', data: { cat: 'sermon', title: '节期讲道参考（圣诞 / 受难 / 复活）', note: '历年讲章汇编' } },
+  { kind: 'resource', data: { cat: 'group',  title: '小组查经手册 · 约翰福音',  note: '共 21 课，附讨论问题' } },
+  { kind: 'resource', data: { cat: 'group',  title: '带小组的十个常见难题',     note: '冷场、有人讲太多、有人不来…' } },
+  { kind: 'resource', data: { cat: 'group',  title: '破冰游戏 30 则',           note: '适合新人多的小组' } },
+  { kind: 'resource', data: { cat: 'misc',   title: '教会场地借用申请表',       note: '婚礼、追思、外借请提前两周' } },
+  { kind: 'resource', data: { cat: 'misc',   title: '奉献收据申请流程',         note: '报税季节常用' } },
+  { kind: 'resource', data: { cat: 'misc',   title: '紧急联络与钥匙保管名单',   note: '仅同工可见' } },
 
-  { kind: 'lostfound', data: { kind: 'lost',  title: '黑色折叠雨伞',   note: '主日下午遗落在二楼走廊。', contact: '0400 100 007' }, author_name: '黄喜乐 Joy Huang' },
-  { kind: 'lostfound', data: { kind: 'found', title: '儿童蓝色水壶',   note: '在主日学教室捡到，已放到接待台。', contact: '接待台' }, author_name: '吴信实 Faith Wu' },
-  { kind: 'lostfound', data: { kind: 'share', title: '婴儿床免费转赠', note: '孩子长大用不上了，成色良好，自取。', contact: '0400 100 011' }, author_name: '孙恩典 Gift Sun' },
+  { kind: 'lostfound', data: { kind: 'lost',  title: '黑色折叠雨伞',     note: '主日下午遗落在二楼走廊，伞柄有个小裂口。', contact: '0400 100 007' }, author_name: '黄喜乐 Joy Huang' },
+  { kind: 'lostfound', data: { kind: 'lost',  title: '银色保温杯',       note: '爱筵之后就找不到了，杯身贴了小熊贴纸，是孩子的。', contact: '0400 100 008' }, author_name: '吴信实 Faith Wu' },
+  { kind: 'lostfound', data: { kind: 'found', title: '儿童蓝色水壶',     note: '在主日学教室捡到，已放到接待台。', contact: '接待台' }, author_name: '吴信实 Faith Wu' },
+  { kind: 'lostfound', data: { kind: 'found', title: '一副老花眼镜',     note: '深咖色框，在第三排座位下，暂由招待同工保管。', contact: '0400 100 014' }, author_name: '张丽华 Lily Zhang' },
+  { kind: 'lostfound', data: { kind: 'share', title: '婴儿床免费转赠',   note: '孩子长大用不上了，成色良好，需自取。', contact: '0400 100 011' }, author_name: '孙恩典 Gift Sun' },
+  { kind: 'lostfound', data: { kind: 'share', title: '搬家纸箱约 20 个', note: '刚搬完家，有需要的自取，放在教会杂物间。', contact: '0400 100 003' }, author_name: '王大卫 David Wang' },
+  { kind: 'lostfound', data: { kind: 'share', title: '可以帮忙接送就医', note: '我周二周四白天有空，长辈需要去医院的可以找我。', contact: '0400 100 015' }, author_name: '许恩光 Simon Xu' },
 
-  { kind: 'visit',  data: { name: '周新民 Simon Zhou', contact: '0400 100 010', address: 'Hurstville', reason: '刚来教会两次，想多认识弟兄姊妹。', needs: '工作日晚上有空', spiritual: '慕道中，对救恩有兴趣', status: 'scheduled', log: [] }, author_name: '李美玲 Mary Li' },
-  { kind: 'visit',  data: { name: '张伯母', contact: '0400 100 099', address: 'Kogarah', reason: '住院两周，盼望同工探望。', needs: '需要有人代买日用品', spiritual: '信心坚定，盼望有人一同祷告', status: 'visited', log: [{ at: new Date().toISOString(), by: '李美玲 Mary Li', text: '已到医院探望，一同读诗篇 23 篇并祷告，精神不错。' }] }, author_name: '李美玲 Mary Li' },
+  { kind: 'visit',  data: { name: '周新民 Simon Zhou', contact: '0400 100 010', address: 'Hurstville', reason: '刚来教会三次，想多认识弟兄姊妹，但不太好意思开口。', needs: '工作日晚上有空，周末要上班', spiritual: '慕道中，对救恩有兴趣，问过「受洗是什么意思」', status: 'scheduled', log: [] }, author_name: '李美玲 Mary Li' },
+  { kind: 'visit',  data: { name: '张伯母', contact: '0400 100 099', address: 'Kogarah', reason: '髋关节手术住院两周，盼望同工探望。', needs: '需要有人代买日用品，家中无人照料', spiritual: '信心坚定，盼望有人一同祷告', status: 'visited', log: [{ at: new Date().toISOString(), by: '李美玲 Mary Li', text: '已到医院探望，一同读诗篇 23 篇并祷告，精神不错。下周出院，已安排姊妹小组轮流送餐一周。' }] }, author_name: '李美玲 Mary Li' },
+  { kind: 'visit',  data: { name: '钱伯明 Ben Qian', contact: '0400 100 018', address: 'Beverly Hills', reason: '太太过世满一年，最近主日常常缺席。', needs: '独居，晚上比较难过', spiritual: '信主多年，但这段时间不太说话', status: 'requested', log: [] }, author_name: '陈约翰 John Chen' },
+  { kind: 'visit',  data: { name: '赵小雨 Rain Zhao', contact: '0400 100 017', address: 'Kingsford', reason: '留学生，第一次离家过节，想找人聊聊。', needs: '没有车，需要接送', spiritual: '还没信主，郑安德带来的', status: 'scheduled', log: [] }, author_name: '郑安德 Andrew Zheng' },
 
   { kind: 'reading', data: { ot: 412, nt: 168 } },
 ];
@@ -204,13 +221,6 @@ const SONGS = [
   { title: '这是天父世界 This Is My Father\'s World', key: 'D', lyrics: 'This is my Father\'s world,\nAnd to my listening ears all nature sings.\n\n（示例：完整歌词请自行录入）' },
 ];
 
-const PPT_LIBRARY = [
-  { name: '主日崇拜流程 · 模板.pptx',   category: '崇拜流程', file_size: '2.1MB' },
-  { name: '奇异恩典 · 歌词.pptx',       category: '诗歌',     file_size: '1.4MB' },
-  { name: '罗马书八章 · 讲道.pptx',     category: '讲道',     file_size: '3.3MB' },
-  { name: '受洗见证会 · 流程.pptx',     category: '特会',     file_size: '2.8MB' },
-  { name: '儿童主日学 · 挪亚方舟.pptx', category: '主日学',   file_size: '5.6MB' },
-];
 
 const GROUP_POSTS: Record<string, { type: string; content: string; author: string }[]> = {
   '青年团契': [
@@ -333,15 +343,22 @@ export async function resetDemoChurch(): Promise<SeedResult[]> {
   // 教会记录本身（SQL 脚本已建好，这里只补名字，跑过就当没事）
   // 整份资料一次写；某个列在这套库里不存在时退回只写必须的两项，
   // 不能因为一个可选列把整次重置搞失败。
-  const full = { name: DEMO_CHURCH_NAME, roster_roles: DEFAULT_ROSTER_ROLES, ...CHURCH_PROFILE };
-  const { error: churchErr } = await supabase.from('churches').update(full).eq('id', cid);
-  if (churchErr) {
-    const { error: minErr } = await supabase.from('churches')
-      .update({ name: DEMO_CHURCH_NAME, roster_roles: DEFAULT_ROSTER_ROLES }).eq('id', cid);
-    out.push({ table: 'churches', rows: minErr ? 0 : 1, error: minErr?.message ?? `部分字段未写入：${churchErr.message}` });
-  } else {
-    out.push({ table: 'churches', rows: 1 });
+  // 可选列是各版本补丁陆续加的，不同库里未必都有。逐级降级，别让一列
+  // 不存在就把整条教会记录的更新废掉。
+  const attempts: [string, any][] = [
+    ['full',  { name: DEMO_CHURCH_NAME, roster_roles: DEFAULT_ROSTER_ROLES, ...CHURCH_PROFILE }],
+    ['roles', { name: DEMO_CHURCH_NAME, roster_roles: DEFAULT_ROSTER_ROLES }],
+    ['name',  { name: DEMO_CHURCH_NAME }],
+  ];
+  let churchDone = '', churchErr = '';
+  for (const [label, patch] of attempts) {
+    const { error } = await supabase.from('churches').update(patch).eq('id', cid);
+    if (!error) { churchDone = label; break; }
+    churchErr = error.message;
   }
+  out.push(churchDone === 'full'
+    ? { table: 'churches', rows: 1 }
+    : { table: 'churches', rows: churchDone ? 1 : 0, error: churchDone ? `仅写入 ${churchDone}：${churchErr}` : churchErr });
 
   // 成员要先写，排班要用它们的 id
   const memberRows = MEMBERS.map(m => ({ ...m, church_id: cid, joined: daysFromNow(-Math.floor(Math.random() * 900) - 30) }));
@@ -369,9 +386,6 @@ export async function resetDemoChurch(): Promise<SeedResult[]> {
     ...p, church_id: cid, file_url: '', created_by: '陈约翰 John Chen',
   }))));
   out.push(await wipeAndInsert('songs', SONGS.map(x => ({ ...x, church_id: cid }))));
-  out.push(await wipeAndInsert('church_ppt_library', PPT_LIBRARY.map(x => ({
-    ...x, church_id: cid, file_url: '', source: 'sample', created_by: '陈约翰 John Chen',
-  }))));
 
   // 排班：接下来四个主日，每个主日排满六个岗位
   if (members?.length) {
@@ -384,12 +398,6 @@ export async function resetDemoChurch(): Promise<SeedResult[]> {
       ROSTER_ROLES.map(role => ({ church_id: cid, date: nextSunday(w), staff_id: plan[role], role }))
         .filter(r => r.staff_id));
     out.push(await wipeAndInsert('rosters', rosterRows));
-
-    // 请假：让排班页面能看到「有人不可用」的样子
-    out.push(await wipeAndInsert('unavailabilities', [
-      { church_id: cid, user_id: byName('刘平安'), date: nextSunday(2) },
-      { church_id: cid, user_id: byName('郑安德'), date: nextSunday(3) },
-    ].filter(u => u.user_id)));
 
     // 出勤：过去四个主日
     const ids = members.map((m: any) => m.id);

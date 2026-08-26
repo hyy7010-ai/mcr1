@@ -64,7 +64,6 @@ const PrayerWall   = lazyPage(() => import('./pages/PrayerWall'));
 const About        = lazyPage(() => import('./pages/About'));
 const Tasks        = lazyPage(() => import('./pages/Tasks'));
 const ActivityLog  = lazyPage(() => import('./pages/ActivityLog'));
-const ReadyPPT     = lazyPage(() => import('./pages/ReadyPPT'));
 const Bulletin     = lazyPage(() => import('./pages/Bulletin'));
 const Groups       = lazyPage(() => import('./pages/Groups'));
 const ProfilePage  = lazyPage(() => import('./pages/Profile'));
@@ -88,6 +87,17 @@ function PageLoader() {
       </div>
     </div>
   );
+}
+
+/**
+ * 平台管理控制台只给 Super Admin。
+ * 之前只在侧栏隐藏了入口 —— 任何登录用户手输 /app/super-admin 都能进去，
+ * 那是真的越权，不是界面问题。
+ */
+function SuperAdminRoute({ children }: { children: React.ReactNode }) {
+  const { profile, user } = useAuth();
+  if (!isSuperAdmin(profile, user)) return <Navigate to="/app/dashboard" replace />;
+  return <>{children}</>;
 }
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -140,10 +150,9 @@ export default function App() {
                 <Route path="prayer"       element={<Suspense fallback={<PageLoader />}><PrayerWall /></Suspense>} />
                 <Route path="profile"      element={<Suspense fallback={<PageLoader />}><ProfilePage /></Suspense>} />
                 <Route path="activity"     element={<Suspense fallback={<PageLoader />}><ActivityLog /></Suspense>} />
-                <Route path="ready"        element={<Suspense fallback={<PageLoader />}><ReadyPPT /></Suspense>} />
                 <Route path="tools"        element={<Suspense fallback={<PageLoader />}><Tools /></Suspense>} />
                 <Route path="approvals"    element={<Suspense fallback={<PageLoader />}><Approvals /></Suspense>} />
-                <Route path="super-admin"  element={<Suspense fallback={<PageLoader />}><SuperAdmin /></Suspense>} />
+                <Route path="super-admin"  element={<SuperAdminRoute><Suspense fallback={<PageLoader />}><SuperAdmin /></Suspense></SuperAdminRoute>} />
                 <Route path="attendance"   element={<Suspense fallback={<PageLoader />}><Attendance /></Suspense>} />
                 <Route path="calendar"     element={<Suspense fallback={<PageLoader />}><Calendar /></Suspense>} />
                 <Route path="publications" element={<Suspense fallback={<PageLoader />}><Publications /></Suspense>} />
