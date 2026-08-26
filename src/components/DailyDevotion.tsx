@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { getActiveChurchId, canManageChurch } from '../lib/permissions';
 import { useMode } from '../contexts/ModeContext';
 import { lifeService, dayKey, LifeRow } from '../services/lifeService';
-import { isSampleChurch } from '../lib/demoChurch';
+import { isSampleChurch, sampleCheckins, SAMPLE_NOTICES } from '../lib/demoChurch';
 
 /* ──────────────────────────────────────────────────────────────────────────
    首页看板 · 每日灵修与属灵指引
@@ -66,6 +66,22 @@ export default function DailyDevotion() {
 
   useEffect(() => {
     if (!churchId) return;
+    // 示例教会用常量：热力图和连续天数要看得出「坚持了一阵子」的样子，
+    // 空着的话这个功能等于没展示。
+    if (isSampleChurch(church)) {
+      setCheckins(sampleCheckins(me).map((c, i) => ({
+        id: `demo-checkin-${i}`, church_id: churchId, kind: 'checkin' as const,
+        data: c, author_id: me, author_name: null, created_at: c.date,
+      })));
+      setNotices(SAMPLE_NOTICES.map((n, i) => ({
+        id: `demo-notice-${i}`, church_id: churchId, kind: 'notice' as const,
+        data: { title: n.title, body: n.body, level: n.level as Notice['level'] },
+        author_id: null, author_name: n.by,
+        created_at: new Date(Date.now() - (i + 1) * 36e5).toISOString(),
+      })));
+      setAudios([]);
+      return;
+    }
     lifeService.list<Checkin>(churchId, 'checkin').then(setCheckins);
     lifeService.list<Notice>(churchId, 'notice').then(setNotices);
     lifeService.list<Audio>(churchId, 'resource').then(rows =>
