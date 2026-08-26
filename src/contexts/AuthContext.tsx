@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
-import { DEMO_CHURCH_ID, DEMO_CHURCH_NAME, sampleVisit, seedLocalSampleData } from '../lib/demoChurch';
+import { DEMO_CHURCH_ID, SAMPLE_CHURCH, sampleVisit, seedLocalSampleData } from '../lib/demoChurch';
 import { churchService } from '../services/churchService';
 
 interface AuthContextType {
@@ -388,15 +388,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // 参观示例教会：只换当前会话的教会上下文，不写 church_<uid> 缓存 ——
   // 刷新页面就自动回到自己的教会，用户不会被困在样板间里。
+  // 参观期间把教会上下文钉住。AuthContext 里有九处会 setChurch（token 刷新、
+  // 标签页聚焦、后台补拉教会资料…），逐个去改是九倍的活也是九倍的漏 ——
+  // 一个守卫在这里全兜住。
+  useEffect(() => {
+    if (sampleVisit.isVisiting() && church?.id !== DEMO_CHURCH_ID) setChurch(SAMPLE_CHURCH);
+  }, [church?.id]);
+
   const visitSampleChurch = () => {
     // 周报与奉献页只存在 localStorage 里，服务端灌不了，进门时补上
     seedLocalSampleData();
     sampleVisit.start(church);
-    setChurch({ id: DEMO_CHURCH_ID, name: DEMO_CHURCH_NAME, code: 'DEMO', church_code: 'DEMO' });
+    setChurch(SAMPLE_CHURCH);
   };
 
   const endSampleVisit = () => {
-    const back = sampleVisit.end();
+    const back = sampleVisit.end(); // 先清标记，否则上面的守卫会把人又拽回来
     setChurch(back ?? null);
     if (!back && user) {
       try { const c = localStorage.getItem(`church_${user.id}`); if (c) setChurch(JSON.parse(c)); } catch {}

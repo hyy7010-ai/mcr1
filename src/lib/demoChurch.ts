@@ -17,23 +17,36 @@ export const DEMO_CHURCH_NAME = '示例教会 Grace Demo Church';
 export const isSampleChurch = (church: any): boolean =>
   (church?.id ?? church) === DEMO_CHURCH_ID;
 
-/** 参观期间把用户原本的教会存起来，退出时好切回去。 */
+export const SAMPLE_CHURCH = {
+  id: DEMO_CHURCH_ID, name: DEMO_CHURCH_NAME, code: 'DEMO', church_code: 'DEMO',
+};
+
+/**
+ * 参观状态放 sessionStorage：刷新后还在（否则 Supabase 刷新 token、标签页
+ * 重新聚焦都会触发 fetchProfileAndChurch，把教会上下文冲回真实教会 ——
+ * 用户会莫名其妙被弹出样板间），关掉标签页就自动清掉，不会被困住。
+ */
+const VISIT_KEY = 'sample_visit';
 const RETURN_KEY = 'sample_church_return_to';
 
 export const sampleVisit = {
   start(currentChurch: any) {
-    try { localStorage.setItem(RETURN_KEY, JSON.stringify(currentChurch ?? null)); } catch {}
+    try {
+      sessionStorage.setItem(VISIT_KEY, '1');
+      sessionStorage.setItem(RETURN_KEY, JSON.stringify(currentChurch ?? null));
+    } catch {}
   },
   /** 返回用户原本的教会；没有记录就返回 null（由调用方决定回落到哪）。 */
   end(): any | null {
     try {
-      const raw = localStorage.getItem(RETURN_KEY);
-      localStorage.removeItem(RETURN_KEY);
+      const raw = sessionStorage.getItem(RETURN_KEY);
+      sessionStorage.removeItem(VISIT_KEY);
+      sessionStorage.removeItem(RETURN_KEY);
       return raw ? JSON.parse(raw) : null;
     } catch { return null; }
   },
   isVisiting(): boolean {
-    return localStorage.getItem(RETURN_KEY) !== null;
+    try { return sessionStorage.getItem(VISIT_KEY) === '1'; } catch { return false; }
   },
 };
 
