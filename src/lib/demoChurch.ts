@@ -15,8 +15,16 @@ import { dayKey } from '../services/lifeService';
 export const DEMO_CHURCH_ID = '0de00000-0000-4000-a000-000000000001';
 export const DEMO_CHURCH_NAME = '示例教会 Grace Demo Church';
 
+/**
+ * 是否处于示例教会。
+ *
+ * 除了看 church 对象，还要看参观标记 —— AuthContext 里有九处 setChurch，
+ * token 刷新（离开一会儿再回来就会发生）会异步把 church 冲回真实教会，
+ * 中间那个竞态窗口里页面已经用真实 id 读过一轮数据了。以标记为准就没有
+ * 这个窗口。
+ */
 export const isSampleChurch = (church: any): boolean =>
-  (church?.id ?? church) === DEMO_CHURCH_ID;
+  (church?.id ?? church) === DEMO_CHURCH_ID || sampleVisit.isVisiting();
 
 export const SAMPLE_CHURCH = {
   id: DEMO_CHURCH_ID, name: DEMO_CHURCH_NAME, code: 'DEMO', church_code: 'DEMO',
