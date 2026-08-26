@@ -68,10 +68,12 @@ security definer
 set search_path = public
 as $fn$
   select
+    -- 线上实际存过 'Super Admin' / 'SuperAdmin' / 'SUPERADMIN' 三种写法，
+    -- 统一去空格转大写再比，别再漏。
     exists (
       select 1 from public.profiles
       where id = auth.uid()
-        and role in ('Super Admin', 'SuperAdmin', 'super_admin')
+        and upper(replace(role, ' ', '')) = 'SUPERADMIN'
     )
     or lower(coalesce(auth.jwt() ->> 'email', '')) in ('jzey805@gmail.com', 'hyy7010@gmail.com');
 $fn$;
