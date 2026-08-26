@@ -138,6 +138,17 @@ const TASKS = [
   { title: '更新教会保险',         description: '公众责任险下月到期，比较三家报价。',                           due_date: daysFromNow(20), priority: 'medium', status: 'in_progress', category: '行政',     created_by_name: '马利亚 Maria Ma' },
 ];
 
+/** Tasks 页用的结构（dueDate、status 只有 pending / completed）。 */
+export const SAMPLE_TASKS = () => TASKS.map((t, i) => ({
+  id: String(i + 1),
+  title: t.title,
+  description: t.description,
+  dueDate: t.due_date,
+  priority: t.priority as 'low' | 'medium' | 'high',
+  status: (t.status === 'done' ? 'completed' : 'pending') as 'pending' | 'completed',
+  category: t.category,
+}));
+
 const PRAYERS = [
   { content: '求主医治我父亲的膝盖手术，下周三开刀。也求主赐我们全家平安与信心，不被恐惧抓住。', tag: 'health', author_name: '李美玲 Mary Li',   anonymous: false, prayed_count: 23 },
   { content: '为下周的工作面试祷告，求主开路。也求主让我在职场中作光作盐，不只是求一份薪水。', tag: 'work',   author_name: '郑安德 Andrew Zheng', anonymous: false, prayed_count: 11 },
@@ -285,15 +296,7 @@ export function seedLocalSampleData(force = false) {
     try { if (force || !localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(value)); } catch {}
   };
 
-  put(`tasks_${cid}`, TASKS.map((t, i) => ({
-    id: String(i + 1),
-    title: t.title,
-    description: t.description,
-    dueDate: t.due_date,
-    priority: t.priority,
-    status: t.status === 'done' ? 'completed' : 'pending',
-    category: t.category,
-  })));
+  put(`tasks_${cid}`, SAMPLE_TASKS());
 
   put(`giving_settings_${cid}`, { bsb: '062-000', accNo: '1234 5678' });
 
