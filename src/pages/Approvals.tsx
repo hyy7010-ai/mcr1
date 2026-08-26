@@ -6,6 +6,7 @@ import { tr } from '../lib/uiText';
 import { supabase } from '../lib/supabase';
 import { logActivity } from '../services/activityService';
 import { getActiveChurchId } from '../lib/permissions';
+import { isSampleChurch } from '../lib/demoChurch';
 import { QRCodeSVG } from 'qrcode.react';
 
 interface PendingRequest {
@@ -84,7 +85,7 @@ export default function Approvals() {
   const fetchData = async () => {
     // Super Admin might not have a church_id in their profile if they switched, 
     // but the 'church' object from AuthContext should be respected.
-    const targetChurchId = profile?.church_id || church?.id;
+    const targetChurchId = getActiveChurchId(profile, church);
     if (!targetChurchId) {
       if (profile) setIsLoading(false);
       return;
@@ -117,10 +118,10 @@ export default function Approvals() {
   };
 
   useEffect(() => {
-    if (profile?.church_id || church?.id) {
+    if (getActiveChurchId(profile, church)) {
       fetchData();
     }
-  }, [profile?.church_id, church?.id]);
+  }, [profile?.church_id, church?.id]);  // church 变了要重查（含参观示例教会）
 
   const handleUpdateRole = async (id: string, name: string, role: string, groupRole?: string | null) => {
     setProcessingId(id);
@@ -204,7 +205,7 @@ export default function Approvals() {
   });
 
   const handleSaveCodes = async () => {
-    const targetChurchId = profile?.church_id || church?.id;
+    const targetChurchId = getActiveChurchId(profile, church);
     if (!targetChurchId) {
       alert(tr('Error: Target church ID missing.', language));
       return;
@@ -289,6 +290,16 @@ export default function Approvals() {
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8 font-sans">
+      {/* 这一页管的是「登录账号」，示例教会里没有真人注册，注定是空的 —— 说清楚，
+          免得让人以为是坏了。 */}
+      {isSampleChurch(church) && (
+        <div className="rounded-[24px] border border-dashed border-outline-variant p-5 text-[13px] leading-relaxed text-on-surface/70">
+          {isZh
+            ? '这一页管理的是「有登录账号的人」——谁能进这个 App、各自什么权限。示例教会里没有真人注册，所以这里是空的。想看会友名册请去「会友」页，那里有 18 位示范成员。'
+            : 'This page manages people with login accounts. The sample church has no real sign-ups, so it is empty by design — see Members for the sample roster.'}
+        </div>
+      )}
+
       <header className="space-y-8">
         <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-8">
           <div className="flex-1">
