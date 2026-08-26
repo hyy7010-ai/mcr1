@@ -5,6 +5,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { getActiveChurchId, canDoStaff } from '../lib/permissions';
 import { useMode } from '../contexts/ModeContext';
 import { lifeService, LifeRow } from '../services/lifeService';
+import CopyFromSample from '../components/CopyFromSample';
+import { isSampleChurch } from '../lib/demoChurch';
 
 /* ──────────────────────────────────────────────────────────────────────────
    互动社区 · 读经进度 / 培训广场 / 资源库 / 失物招领
@@ -31,7 +33,7 @@ export default function Community() {
   const { profile, church, user } = useAuth();
   const churchId = getActiveChurchId(profile, church) || '';
   const { mode } = useMode();
-  const canPost = canDoStaff(profile, user) && mode !== 'Member';
+  const canPost = canDoStaff(profile, user) && mode !== 'Member' && !isSampleChurch(church);
   const me = profile?.id || user?.id || 'me';
   const author = { id: me, name: profile?.full_name || user?.email || '' };
 
@@ -110,12 +112,15 @@ export default function Community() {
               {isZh ? '装备自己，才能服事别人。' : 'Be equipped, then serve.'}
             </p>
           </div>
-          {canPost && (
-            <button onClick={() => setShowCourseModal(true)}
-              className="px-6 py-3 rounded-full bg-black text-white text-[11px] font-black uppercase tracking-widest whitespace-nowrap active:scale-95 transition-all">
-              {isZh ? '发布活动 / 培训' : 'Post a course'}
-            </button>
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            <CopyFromSample kind="course" />
+            {canPost && (
+              <button onClick={() => setShowCourseModal(true)}
+                className="px-6 py-3 rounded-full bg-black text-white text-[11px] font-black uppercase tracking-widest whitespace-nowrap active:scale-95 transition-all">
+                {isZh ? '发布活动 / 培训' : 'Post a course'}
+              </button>
+            )}
+          </div>
         </div>
 
         {courses.length === 0 && (
@@ -185,12 +190,15 @@ export default function Community() {
           <h2 className="font-serif font-black text-[26px] leading-tight text-on-surface">
             {isZh ? '灵修资源库' : 'Resource Library'}
           </h2>
-          {canPost && (
-            <button onClick={() => setShowResForm(v => !v)}
-              className="px-5 py-2.5 rounded-full border border-outline-variant/50 text-[11px] font-black uppercase tracking-widest whitespace-nowrap hover:border-primary transition-all">
-              {isZh ? '添加资源' : 'Add resource'}
-            </button>
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            <CopyFromSample kind="resource" />
+            {canPost && (
+              <button onClick={() => setShowResForm(v => !v)}
+                className="px-5 py-2.5 rounded-full border border-outline-variant/50 text-[11px] font-black uppercase tracking-widest whitespace-nowrap hover:border-primary transition-all">
+                {isZh ? '添加资源' : 'Add resource'}
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="flex gap-2 overflow-x-auto no-scrollbar">
@@ -252,10 +260,12 @@ export default function Community() {
               {isZh ? '用小事见证爱心。' : 'Small things, real love.'}
             </p>
           </div>
-          <button onClick={() => setShowLostForm(v => !v)}
-            className="px-5 py-2.5 rounded-full border border-outline-variant/50 text-[11px] font-black uppercase tracking-widest whitespace-nowrap hover:border-primary transition-all">
-            {isZh ? '发布一条' : 'Post'}
-          </button>
+          {!isSampleChurch(church) && (
+            <button onClick={() => setShowLostForm(v => !v)}
+              className="px-5 py-2.5 rounded-full border border-outline-variant/50 text-[11px] font-black uppercase tracking-widest whitespace-nowrap hover:border-primary transition-all">
+              {isZh ? '发布一条' : 'Post'}
+            </button>
+          )}
         </div>
 
         {showLostForm && (

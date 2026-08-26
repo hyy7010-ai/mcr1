@@ -82,8 +82,8 @@ export default function DemoChurchPanel() {
             </h3>
             <p className="mt-1 text-[13px] text-on-surface/70 max-w-xl leading-relaxed">
               {isZh
-                ? '全平台共用一个装满示例内容的教会。任何用户都能进去参观、随便点，看完就知道每个页面该怎么用 —— 改动只留在这里，碰不到自己教会的数据。'
-                : 'One shared church pre-filled with sample content. Anyone can walk through it and try things — nothing here touches their own church.'}
+                ? '全平台共用一个装满示例内容的教会，对所有人只读 —— 共用又人人可写的话，第一个删掉示例排班的人就毁了后面所有访客的样板间。用户看中哪块结构，用「复制到我的教会」带回自己教会。只有你（平台管理员）能改这里的内容。'
+                : 'One shared, read-only church pre-filled with sample content. Visitors copy what they want into their own church; only platform admins can edit it here.'}
             </p>
           </div>
           <span className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap ${
@@ -131,7 +131,7 @@ export default function DemoChurchPanel() {
           {confirming ? (
             <>
               <span className="text-[13px] text-on-surface">
-                {isZh ? '会清空示例教会现有内容并写回初始示例，确定？' : 'This wipes the sample church and re-seeds it. Sure?'}
+                {isZh ? '会清空示例教会现有内容并写回初始示例，确定？（不影响任何真实教会）' : 'This wipes the sample church and re-seeds it. Sure?'}
               </span>
               <button onClick={handleReset}
                 className="px-5 py-3 rounded-2xl bg-error text-white text-[10px] font-black uppercase tracking-widest whitespace-nowrap active:scale-95 transition-all">
