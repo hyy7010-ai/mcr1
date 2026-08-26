@@ -118,15 +118,29 @@ export default function Groups() {
         .select('id, profile_id, group_id')
         .eq('church_id', activeChurchId);
 
-      // Load all church profiles (for manager assignment)
-      const { data: profilesData } = await supabase
-        .from('profiles')
-        .select('id, full_name, role, avatar_url')
-        .eq('church_id', activeChurchId)
-        .neq('role', 'Pending');
+      // 示例教会没有真实登录账号，改用会友名册；归属看 church_members.family
+      // （UI 上这一列就叫「所属小组」），不去碰 church_group_members ——
+      // 它的 profile_id 是指向 profiles 的外键，塞会友 id 会违反约束。
+      const sample = isSampleChurch(church);
+      const { data: profilesData } = sample
+        ? await supabase.from('church_members')
+            .select('id, name, status, family').eq('church_id', activeChurchId)
+        : await supabase.from('profiles')
+            .select('id, full_name, role, avatar_url')
+            .eq('church_id', activeChurchId).neq('role', 'Pending');
 
-      const memberships = membershipsData || [];
-      const profiles = profilesData || [];
+      const profiles: any[] = sample
+        ? (profilesData || []).map((m: any) => ({ id: m.id, full_name: m.name, role: m.status, avatar_url: '', family: m.family }))
+        : ((profilesData || []) as any[]);
+
+      const memberships = sample
+        ? profiles
+            .map((p: any) => {
+              const g = (groupsData || []).find((x: any) => x.name === p.family);
+              return g ? { id: `s-${p.id}`, profile_id: p.id, group_id: g.id } : null;
+            })
+            .filter(Boolean) as any[]
+        : (membershipsData || []);
 
       // Find my group
       const myMembership = memberships.find((m: any) => m.profile_id === profile?.id);

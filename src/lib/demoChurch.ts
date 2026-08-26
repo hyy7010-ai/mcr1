@@ -85,10 +85,22 @@ const MEMBERS = [
 ];
 
 const GROUPS = [
-  { name: '青年团契',   description: '18–30 岁，每周五晚 7:30，查经与生活分享。', color: '#2C2C2C', icon: 'groups' },
-  { name: '姊妹小组',   description: '每周二上午，查经、代祷与育儿交流。',       color: '#8B7E74', icon: 'diversity_3' },
-  { name: '福音朋友小组', description: '为慕道友预备，轻松聊信仰的入门小组。',   color: '#6E635B', icon: 'handshake' },
+  { name: '葡萄树小组',   description: '约翰福音 15:5「我是葡萄树，你们是枝子」。青年与初职，周五晚查经＋宵夜。', color: '#2C2C2C', icon: 'groups' },
+  { name: '以便以谢小组', description: '撒上 7:12「到如今耶和华都帮助我们」。姊妹与家庭，周二上午，可带小孩。',   color: '#8B7E74', icon: 'diversity_3' },
+  { name: '伯特利小组',   description: '创 28:19「这地方是神的殿」。慕道友与新朋友，周六晚在咖啡厅轻松聊信仰。', color: '#6E635B', icon: 'handshake' },
 ];
+
+/** 会友 → 所属小组。church_members.family 这一列在 UI 上就叫「所属小组」，
+ *  直接用它，不去碰 church_group_members —— 那张表的 profile_id 是指向
+ *  profiles 的外键，示例教会没有真实账号，塞进去会违反约束。 */
+const GROUP_OF: Record<string, string> = {
+  '陈约翰': '以便以谢小组', '陈师母': '以便以谢小组', '李美玲': '以便以谢小组',
+  '张丽华': '以便以谢小组', '何静文': '以便以谢小组', '马利亚': '以便以谢小组',
+  '林恩慈': '葡萄树小组',   '王大卫': '葡萄树小组',   '郑安德': '葡萄树小组',
+  '刘平安': '葡萄树小组',   '张保罗': '葡萄树小组',   '吴信实': '葡萄树小组',
+  '黄喜乐': '伯特利小组',   '周新民': '伯特利小组',   '孙恩典': '伯特利小组',
+  '赵小雨': '伯特利小组',   '许恩光': '伯特利小组',   '钱伯明': '伯特利小组',
+};
 
 const EVENTS = [
   { title: '主日崇拜',         event_date: nextSunday(0), event_time: '10:00', category: 'Service',   description: '主日联合崇拜，会后爱筵。讲员：陈约翰牧师。' },
@@ -223,16 +235,26 @@ const SONGS = [
 
 
 const GROUP_POSTS: Record<string, { type: string; content: string; author: string }[]> = {
-  '青年团契': [
-    { type: 'text', content: '本周五查经进度到罗马书第八章，请弟兄姊妹先预读 1–17 节。聚会后有宵夜！', author: '王大卫 David Wang' },
-    { type: 'text', content: '下周五轮到郑安德带敬拜，需要一位帮忙架音响的，有空的举手 🙋', author: '王大卫 David Wang' },
+  '葡萄树小组': [
+    { type: 'text', content: '本周五查经到罗马书第八章，请先读 1–17 节。聚会后照例有宵夜 🍜', author: '王大卫 David Wang' },
+    { type: 'text', content: '我可以带二十个饺子来，不用另外买了', author: '刘平安 Peace Liu' },
+    { type: 'text', content: '下周五轮到郑安德带敬拜，还缺一位帮忙架音响的，有空的举手 🙋', author: '王大卫 David Wang' },
+    { type: 'text', content: '我可以，那天不用加班', author: '张保罗 Paul Zhang' },
+    { type: 'text', content: '上周分享「万事互相效力」之后我想了很久。最近工作上的事一直过不去，但那句话让我安静下来了，谢谢大家陪我祷告。', author: '郑安德 Andrew Zheng' },
   ],
-  '姊妹小组': [
-    { type: 'text', content: '周二上午聚会改到 10:00，地点还是副堂。带孩子的姊妹可以把孩子交给主日学教室。', author: '李美玲 Mary Li' },
+  '以便以谢小组': [
+    { type: 'text', content: '周二上午聚会改到 10:00，地点还是副堂。带孩子的姊妹可以把孩子交给主日学教室，吴信实会帮忙看。', author: '李美玲 Mary Li' },
+    { type: 'text', content: '收到，我这周会带一盘水果过去', author: '张丽华 Lily Zhang' },
     { type: 'text', content: '感谢主，上周为陈姊妹产检的代祷已蒙应允，母子平安 🙏', author: '李美玲 Mary Li' },
+    { type: 'text', content: '太好了！等她出月子我们去看看她', author: '何静文 Jenny He' },
+    { type: 'text', content: '本月爱筵由我们组预备，需要四位帮厨。预算 $250，黄姊妹会陪我一起采买。', author: '马利亚 Maria Ma' },
   ],
-  '福音朋友小组': [
-    { type: 'text', content: '这周聊「苦难与盼望」，欢迎带还没信主的朋友来，不需要任何基础。', author: '黄喜乐 Joy Huang' },
+  '伯特利小组': [
+    { type: 'text', content: '这周聊「苦难与盼望」，欢迎带还没信主的朋友来，不需要任何基础，就是喝咖啡聊天 ☕', author: '黄喜乐 Joy Huang' },
+    { type: 'text', content: '我可以带我室友来吗？他最近压力很大', author: '赵小雨 Rain Zhao' },
+    { type: 'text', content: '当然可以，越多人越好。地点在教会对面那家咖啡厅，我提前占位子', author: '黄喜乐 Joy Huang' },
+    { type: 'text', content: '上次听完大家分享，我第一次觉得教会没有那么难进。谢谢你们没有一上来就要我信什么。', author: '周新民 Simon Zhou' },
+    { type: 'text', content: '需要接送的说一声，我周六晚上有车', author: '许恩光 Simon Xu' },
   ],
 };
 
@@ -390,7 +412,7 @@ export async function resetDemoChurch(): Promise<SeedResult[]> {
     : { table: 'churches', rows: churchDone ? 1 : 0, error: churchDone ? `仅写入 ${churchDone}：${churchErr}` : churchErr });
 
   // 成员要先写，排班要用它们的 id
-  const memberRows = MEMBERS.map(m => ({ ...m, church_id: cid, joined: daysFromNow(-Math.floor(Math.random() * 900) - 30) }));
+  const memberRows = MEMBERS.map(m => ({ ...m, church_id: cid, family: GROUP_OF[m.name.split(' ')[0]] || m.family, joined: daysFromNow(-Math.floor(Math.random() * 900) - 30) }));
   await supabase.from('church_members').delete().eq('church_id', cid);
   const { data: members, error: memErr } = await supabase.from('church_members').insert(memberRows).select('id, name, status');
   out.push({ table: 'church_members', rows: members?.length ?? 0, error: memErr?.message });
