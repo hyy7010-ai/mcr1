@@ -235,6 +235,7 @@ export default function Layout() {
       { icon: 'group', label: t('members'), path: '/app/members' },
       { icon: 'task_alt', label: t('tasks'), path: '/app/tasks' },
       { icon: 'calendar_month', label: t('roster'), path: '/app/roster' },
+      { icon: 'how_to_reg', label: isZh ? '主日出席' : 'Attendance', path: '/app/attendance' },
       { icon: 'newspaper', label: t('bulletin') || 'Weekly Bulletin', path: '/app/bulletin' },
       { icon: 'menu_book', label: t('publications') || '免费刊物', path: '/app/publications' },
       { icon: 'auto_awesome', label: isZh ? 'PPT 制作工具' : 'PPT Creator', path: 'https://www.liftppt.com/', external: true, featureKey: '/app/songs' },
