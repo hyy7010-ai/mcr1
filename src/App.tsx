@@ -27,30 +27,56 @@ import { ModeProvider } from './contexts/ModeContext';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 
+/**
+ * 懒加载页面，并兜住「部署撞上开着的页面」。
+ *
+ * 每次构建 chunk 的哈希都会变。用户开着旧页面时我们发了新版本，旧
+ * index.html 记着的那个文件名就 404 了，点进任何还没加载过的页面都会炸
+ * （TypeError: Failed to fetch dynamically imported module）。
+ *
+ * 这里第一次失败就整页重载一次 —— 重载会拿到新的 index.html 和新文件名。
+ * sessionStorage 里记时间戳做闸门：万一 chunk 是真的不存在，不至于陷入
+ * 无限重载，第二次就把错误抛给 ErrorBoundary。
+ */
+function lazyPage(factory: () => Promise<{ default: React.ComponentType<any> }>) {
+  return lazy(() =>
+    factory().catch((err) => {
+      const KEY = 'chunk_reload_at';
+      const last = Number(sessionStorage.getItem(KEY) || 0);
+      if (Date.now() - last > 10000) {
+        sessionStorage.setItem(KEY, String(Date.now()));
+        window.location.reload();
+        return new Promise<never>(() => {}); // 等重载接管，永不 resolve
+      }
+      throw err;
+    })
+  );
+}
+
 // Lazy-load all pages — browser only downloads a page when the user navigates to it
-const Dashboard    = lazy(() => import('./pages/Dashboard'));
-const Songs        = lazy(() => import('./pages/Songs'));
-const Roster       = lazy(() => import('./pages/Roster'));
-const Giving       = lazy(() => import('./pages/Giving'));
-const Members      = lazy(() => import('./pages/Members'));
-const GraceAI      = lazy(() => import('./pages/GraceAI'));
-const PrayerWall   = lazy(() => import('./pages/PrayerWall'));
-const About        = lazy(() => import('./pages/About'));
-const Tasks        = lazy(() => import('./pages/Tasks'));
-const ActivityLog  = lazy(() => import('./pages/ActivityLog'));
-const ReadyPPT     = lazy(() => import('./pages/ReadyPPT'));
-const Bulletin     = lazy(() => import('./pages/Bulletin'));
-const Groups       = lazy(() => import('./pages/Groups'));
-const ProfilePage  = lazy(() => import('./pages/Profile'));
-const SuperAdmin   = lazy(() => import('./pages/SuperAdmin'));
-const Tools        = lazy(() => import('./pages/Tools'));
-const Approvals    = lazy(() => import('./pages/Approvals'));
-const Attendance   = lazy(() => import('./pages/Attendance'));
-const Calendar     = lazy(() => import('./pages/Calendar'));
-const Publications = lazy(() => import('./pages/Publications'));
-const Community    = lazy(() => import('./pages/Community'));
-const Messages     = lazy(() => import('./pages/Messages'));
-const Visitation   = lazy(() => import('./pages/Visitation'));
+const Dashboard    = lazyPage(() => import('./pages/Dashboard'));
+const Songs        = lazyPage(() => import('./pages/Songs'));
+const Roster       = lazyPage(() => import('./pages/Roster'));
+const Giving       = lazyPage(() => import('./pages/Giving'));
+const Members      = lazyPage(() => import('./pages/Members'));
+const GraceAI      = lazyPage(() => import('./pages/GraceAI'));
+const PrayerWall   = lazyPage(() => import('./pages/PrayerWall'));
+const About        = lazyPage(() => import('./pages/About'));
+const Tasks        = lazyPage(() => import('./pages/Tasks'));
+const ActivityLog  = lazyPage(() => import('./pages/ActivityLog'));
+const ReadyPPT     = lazyPage(() => import('./pages/ReadyPPT'));
+const Bulletin     = lazyPage(() => import('./pages/Bulletin'));
+const Groups       = lazyPage(() => import('./pages/Groups'));
+const ProfilePage  = lazyPage(() => import('./pages/Profile'));
+const SuperAdmin   = lazyPage(() => import('./pages/SuperAdmin'));
+const Tools        = lazyPage(() => import('./pages/Tools'));
+const Approvals    = lazyPage(() => import('./pages/Approvals'));
+const Attendance   = lazyPage(() => import('./pages/Attendance'));
+const Calendar     = lazyPage(() => import('./pages/Calendar'));
+const Publications = lazyPage(() => import('./pages/Publications'));
+const Community    = lazyPage(() => import('./pages/Community'));
+const Messages     = lazyPage(() => import('./pages/Messages'));
+const Visitation   = lazyPage(() => import('./pages/Visitation'));
 
 // Minimal spinner shown while a lazy page chunk is loading
 function PageLoader() {
