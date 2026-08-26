@@ -45,7 +45,8 @@ declare
     'church_events', 'church_tasks', 'rosters', 'unavailabilities',
     'church_life', 'group_posts', 'group_post_comments', 'member_links',
     'attendance_records', 'church_publications', 'publications',
-    'songs', 'church_ppt_library', 'church_finance', 'notifications'
+    'songs', 'church_ppt_library', 'church_finance', 'notifications',
+    'activity_logs'
   ];
 begin
   -- 让所有人看得见这一条教会记录（否则切换进去拿不到教会名 / roster_roles）

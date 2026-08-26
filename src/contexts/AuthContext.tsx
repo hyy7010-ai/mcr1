@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
-import { DEMO_CHURCH_ID, DEMO_CHURCH_NAME, sampleVisit } from '../lib/demoChurch';
+import { DEMO_CHURCH_ID, DEMO_CHURCH_NAME, sampleVisit, seedLocalSampleData } from '../lib/demoChurch';
 import { churchService } from '../services/churchService';
 
 interface AuthContextType {
@@ -389,6 +389,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // 参观示例教会：只换当前会话的教会上下文，不写 church_<uid> 缓存 ——
   // 刷新页面就自动回到自己的教会，用户不会被困在样板间里。
   const visitSampleChurch = () => {
+    // 周报与奉献页只存在 localStorage 里，服务端灌不了，进门时补上
+    seedLocalSampleData();
     sampleVisit.start(church);
     setChurch({ id: DEMO_CHURCH_ID, name: DEMO_CHURCH_NAME, code: 'DEMO', church_code: 'DEMO' });
   };

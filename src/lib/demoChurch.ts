@@ -139,6 +139,117 @@ const LIFE: { kind: string; data: any; author_name?: string }[] = [
   { kind: 'reading', data: { ot: 412, nt: 168 } },
 ];
 
+
+/* ── 其余页面的示例内容 ─────────────────────────────────────────────────── */
+
+const FINANCE = [0, 1, 2, 3].map(w => {
+  const cash = 1200 + w * 137, tithe = 800 + w * 60, reim = w === 2 ? 150 : 0;
+  return {
+    date: nextSunday(-w - 1), cash_total: cash, tithe, reimbursement: reim,
+    grand_total: cash + tithe - reim,
+    details: `主日现金奉献 ${cash} · 十一奉献 ${tithe}` + (reim ? ` · 报销 ${reim}` : ''),
+    signees: ['马利亚 Maria Ma', '黄喜乐 Joy Huang'],
+    created_by: '马利亚 Maria Ma',
+  };
+});
+
+const ACTIVITY = [
+  { action: '更新了排班',       target: '主日崇拜 · 本周',       type: 'Roster',   user_name: '陈约翰 John Chen', user_role: 'Manager', note: '司琴由刘平安调整为林恩慈' },
+  { action: '新增会友',         target: '孙恩典 Gift Sun',       type: 'Member',   user_name: '李美玲 Mary Li',   user_role: 'Leader',  note: '由黄喜乐邀请' },
+  { action: '上传了资源',       target: '罗马书 8 章讲道大纲',   type: 'Resource', user_name: '陈约翰 John Chen', user_role: 'Manager', note: null },
+  { action: '审核通过代祷事项', target: '为父亲的手术代祷',       type: 'System',   user_name: '陈约翰 John Chen', user_role: 'Manager', note: null },
+  { action: '登记了探访',       target: '张伯母 · 已探访',        type: 'Member',   user_name: '李美玲 Mary Li',   user_role: 'Leader',  note: '医院探望，一同祷告' },
+  { action: '开启新点收',       target: `${nextSunday(-1)} 主日奉献`, type: 'System', user_name: '马利亚 Maria Ma', user_role: 'Staff', note: null },
+];
+
+const PUBLICATIONS = [
+  { title: '恩典季刊 · 春季号',   description: '本季主题：在患难中的盼望。含牧者的话、见证专栏、事工回顾。', category: '季刊',   file_name: 'grace-quarterly-spring.pdf', file_size: '4.2MB' },
+  { title: '新朋友手册',         description: '教会简介、聚会时间、各团契介绍，给第一次来的朋友。',       category: '手册',   file_name: 'newcomer-guide.pdf',        file_size: '1.8MB' },
+  { title: '受洗预备课程讲义',   description: '六课讲义，配合新信徒门徒成长班使用。',                     category: '教材',   file_name: 'baptism-course.pdf',        file_size: '2.6MB' },
+  { title: '年度事工报告',       description: '各部门全年事工回顾与财务摘要。',                           category: '报告',   file_name: 'annual-report.pdf',         file_size: '5.1MB' },
+];
+
+// 一律用公有领域的古典圣诗，只放开头一两行作示意，避免版权问题
+const SONGS = [
+  { title: '奇异恩典 Amazing Grace',        key: 'G', lyrics: 'Amazing grace! how sweet the sound,\nThat saved a wretch like me!\n\n（示例：完整歌词请自行录入）' },
+  { title: '三一颂 Doxology',               key: 'F', lyrics: 'Praise God, from whom all blessings flow;\nPraise Him, all creatures here below.\n\n（示例：完整歌词请自行录入）' },
+  { title: '圣哉、圣哉、圣哉 Holy, Holy, Holy', key: 'D', lyrics: 'Holy, holy, holy! Lord God Almighty!\nEarly in the morning our song shall rise to Thee.\n\n（示例：完整歌词请自行录入）' },
+  { title: '我心灵得安宁 It Is Well',        key: 'C', lyrics: 'When peace like a river attendeth my way,\nWhen sorrows like sea billows roll.\n\n（示例：完整歌词请自行录入）' },
+  { title: '这是天父世界 This Is My Father\'s World', key: 'D', lyrics: 'This is my Father\'s world,\nAnd to my listening ears all nature sings.\n\n（示例：完整歌词请自行录入）' },
+];
+
+const PPT_LIBRARY = [
+  { name: '主日崇拜流程 · 模板.pptx',   category: '崇拜流程', file_size: '2.1MB' },
+  { name: '奇异恩典 · 歌词.pptx',       category: '诗歌',     file_size: '1.4MB' },
+  { name: '罗马书八章 · 讲道.pptx',     category: '讲道',     file_size: '3.3MB' },
+  { name: '受洗见证会 · 流程.pptx',     category: '特会',     file_size: '2.8MB' },
+  { name: '儿童主日学 · 挪亚方舟.pptx', category: '主日学',   file_size: '5.6MB' },
+];
+
+const GROUP_POSTS: Record<string, { type: string; content: string; author: string }[]> = {
+  '青年团契': [
+    { type: 'text', content: '本周五查经进度到罗马书第八章，请弟兄姊妹先预读 1–17 节。聚会后有宵夜！', author: '王大卫 David Wang' },
+    { type: 'text', content: '下周五轮到郑安德带敬拜，需要一位帮忙架音响的，有空的举手 🙋', author: '王大卫 David Wang' },
+  ],
+  '姊妹小组': [
+    { type: 'text', content: '周二上午聚会改到 10:00，地点还是副堂。带孩子的姊妹可以把孩子交给主日学教室。', author: '李美玲 Mary Li' },
+    { type: 'text', content: '感谢主，上周为陈姊妹产检的代祷已蒙应允，母子平安 🙏', author: '李美玲 Mary Li' },
+  ],
+  '福音朋友小组': [
+    { type: 'text', content: '这周聊「苦难与盼望」，欢迎带还没信主的朋友来，不需要任何基础。', author: '黄喜乐 Joy Huang' },
+  ],
+};
+
+/** 周报与奉献页是纯 localStorage 的，服务端灌不了，只能在进入示例教会时补上。 */
+export function seedLocalSampleData() {
+  const cid = DEMO_CHURCH_ID;
+  const put = (key: string, value: any) => {
+    try { if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(value)); } catch {}
+  };
+
+  put(`giving_settings_${cid}`, { bsb: '062-000', accNo: '1234 5678' });
+
+  put(`bulletin_v3_${cid}`, {
+    churchName: DEMO_CHURCH_NAME,
+    date: nextSunday(0),
+    issueNo: '2026-14',
+    meetingTime: '主日 10:00',
+    address: CHURCH_PROFILE.location,
+    phone: CHURCH_PROFILE.phone,
+    website: CHURCH_PROFILE.website,
+    sermonTitle: '在患难中的盼望',
+    preacher: '陈约翰 牧师',
+    scripture: '罗马书 8:18–30',
+    scriptureText: '我想现在的苦楚，若比起将来要显于我们的荣耀，就不足介意了。',
+    hymns: [
+      { name: '奇异恩典', number: '1' },
+      { name: '圣哉、圣哉、圣哉', number: '2' },
+      { name: '三一颂', number: '3' },
+    ],
+    sermonPoints: ['一、苦难不是终点', '二、圣灵亲自的代求', '三、万事都互相效力'],
+    schedule: [
+      { role: '讲员', name: '陈约翰' }, { role: '主领', name: '林恩慈' },
+      { role: '司琴', name: '刘平安' }, { role: '音响', name: '张保罗' },
+      { role: '投影', name: '郑安德' }, { role: '招待', name: '黄喜乐' },
+    ],
+    announcements: [
+      '下周主日举行圣餐，请弟兄姊妹预备己心。',
+      '受洗班开始报名，请向李美玲传道登记。',
+      '本月爱筵由姊妹小组预备，欢迎自由奉献。',
+    ],
+    activities: [
+      { name: '系统神学导读班', time: '每周三 19:30', place: '副堂 201' },
+      { name: '青年团契查经',   time: '每周五 19:30', place: '青年厅' },
+    ],
+    offering: '$2,180',
+    attendance: '132',
+    prayerRequests: ['为受洗班的学员祷告', '为张伯母的康复祷告', '为冬令营的预备祷告'],
+    dailyReading: '罗马书 8–12 章',
+    memoryVerse: '我们晓得万事都互相效力，叫爱神的人得益处。（罗 8:28）',
+    pastorMessage: '亲爱的弟兄姊妹，本周我们一同思想患难中的盼望⋯⋯',
+  });
+}
+
 /* ── 重置 ─────────────────────────────────────────────────────────────── */
 
 export interface SeedResult { table: string; rows: number; error?: string }
@@ -198,6 +309,16 @@ export async function resetDemoChurch(): Promise<SeedResult[]> {
     church_id: cid, kind: l.kind, data: l.data, author_id: null, author_name: l.author_name ?? null,
   }))));
 
+  out.push(await wipeAndInsert('church_finance', FINANCE.map(f => ({ ...f, church_id: cid }))));
+  out.push(await wipeAndInsert('activity_logs', ACTIVITY.map(a => ({ ...a, church_id: cid, user_id: null }))));
+  out.push(await wipeAndInsert('church_publications', PUBLICATIONS.map(p => ({
+    ...p, church_id: cid, file_url: '', created_by: '陈约翰 John Chen',
+  }))));
+  out.push(await wipeAndInsert('songs', SONGS.map(x => ({ ...x, church_id: cid }))));
+  out.push(await wipeAndInsert('church_ppt_library', PPT_LIBRARY.map(x => ({
+    ...x, church_id: cid, file_url: '', source: 'sample', created_by: '陈约翰 John Chen',
+  }))));
+
   // 排班：接下来四个主日，每个主日排满六个岗位
   if (members?.length) {
     const byName = (n: string) => members.find((m: any) => m.name.startsWith(n))?.id;
@@ -209,6 +330,35 @@ export async function resetDemoChurch(): Promise<SeedResult[]> {
       ROSTER_ROLES.map(role => ({ church_id: cid, date: nextSunday(w), staff_id: plan[role], role }))
         .filter(r => r.staff_id));
     out.push(await wipeAndInsert('rosters', rosterRows));
+
+    // 请假：让排班页面能看到「有人不可用」的样子
+    out.push(await wipeAndInsert('unavailabilities', [
+      { church_id: cid, user_id: byName('刘平安'), date: nextSunday(2) },
+      { church_id: cid, user_id: byName('郑安德'), date: nextSunday(3) },
+    ].filter(u => u.user_id)));
+
+    // 出勤：过去四个主日
+    const ids = members.map((m: any) => m.id);
+    out.push(await wipeAndInsert('attendance_records', [0, 1, 2, 3].map(w => ({
+      church_id: cid,
+      service_date: nextSunday(-w - 1),
+      headcount: 132 - w * 6,
+      notes: w === 0 ? '爱筵由姊妹小组预备' : '',
+      present_member_ids: ids.slice(0, ids.length - w),
+      created_by: '黄喜乐 Joy Huang',
+    }))));
+  }
+
+  // 小组帖子：要等小组建好拿到 id
+  const { data: groups } = await supabase
+    .from('church_groups').select('id, name').eq('church_id', cid);
+  if (groups?.length) {
+    const posts = groups.flatMap((g: any) =>
+      (GROUP_POSTS[g.name] || []).map(p => ({
+        church_id: cid, group_id: g.id, type: p.type, content: p.content,
+        url: null, image_url: null, author_name: p.author, author_id: null,
+      })));
+    out.push(await wipeAndInsert('group_posts', posts));
   }
 
   return out;

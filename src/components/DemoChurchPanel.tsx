@@ -26,6 +26,13 @@ const COUNTED = [
   { table: 'church_events',  zh: '日程',   en: 'Events' },
   { table: 'church_tasks',   zh: '任务',   en: 'Tasks' },
   { table: 'church_life',    zh: '灵修内容', en: 'Life' },
+  { table: 'church_finance', zh: '财务点收', en: 'Finance' },
+  { table: 'attendance_records', zh: '出勤', en: 'Attendance' },
+  { table: 'church_publications', zh: '刊物', en: 'Publications' },
+  { table: 'songs',          zh: '诗歌',   en: 'Songs' },
+  { table: 'church_ppt_library', zh: 'PPT', en: 'PPT' },
+  { table: 'group_posts',    zh: '小组帖子', en: 'Posts' },
+  { table: 'activity_logs',  zh: '活动日志', en: 'Activity' },
 ];
 
 export default function DemoChurchPanel() {
