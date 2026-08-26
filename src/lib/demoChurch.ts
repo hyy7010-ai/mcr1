@@ -99,6 +99,20 @@ const PRAYERS = [
   { content: '感谢主！上个月提的搬家代祷已经蒙应允，新住处离教会只要十分钟。', tag: 'other',  author_name: '黄喜乐 Joy Huang', anonymous: false, prayed_count: 31 },
 ];
 
+/** 一个填好的教会长什么样。缺了这些，样板间顶上会一直挂着「完成教会设置 0/6」。 */
+const CHURCH_PROFILE = {
+  location: '123 Forest Road, Hurstville NSW 2220',
+  phone: '(02) 9580 0000',
+  website: 'https://demo.gracesystem.org',
+  meeting_time: '主日 10:00 联合崇拜 · 周五 19:30 青年团契',
+  description: '一间华人移民教会的示范档案 —— 这里的人名、排班、代祷都是虚构的，用来展示每个页面填满之后的样子。',
+  // 内联 SVG，不依赖任何外部图床
+  logo_url: 'data:image/svg+xml;utf8,' + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="%232C2C2C"/><path d="M32 12v10M27 17h10M32 22 20 32v18h24V32L32 22Z" fill="none" stroke="%23F4F1EE" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/></svg>'
+  ),
+  setup_progress: { info: true, group: true, logo: true, invite: true },
+};
+
 export const DEFAULT_ROSTER_ROLES = ['讲员', '主领', '司琴', '音响', '投影', '招待'];
 const ROSTER_ROLES = DEFAULT_ROSTER_ROLES;
 
@@ -152,9 +166,17 @@ export async function resetDemoChurch(): Promise<SeedResult[]> {
   const cid = DEMO_CHURCH_ID;
 
   // 教会记录本身（SQL 脚本已建好，这里只补名字，跑过就当没事）
-  await supabase.from('churches')
-    .update({ name: DEMO_CHURCH_NAME, roster_roles: DEFAULT_ROSTER_ROLES })
-    .eq('id', cid);
+  // 整份资料一次写；某个列在这套库里不存在时退回只写必须的两项，
+  // 不能因为一个可选列把整次重置搞失败。
+  const full = { name: DEMO_CHURCH_NAME, roster_roles: DEFAULT_ROSTER_ROLES, ...CHURCH_PROFILE };
+  const { error: churchErr } = await supabase.from('churches').update(full).eq('id', cid);
+  if (churchErr) {
+    const { error: minErr } = await supabase.from('churches')
+      .update({ name: DEMO_CHURCH_NAME, roster_roles: DEFAULT_ROSTER_ROLES }).eq('id', cid);
+    out.push({ table: 'churches', rows: minErr ? 0 : 1, error: minErr?.message ?? `部分字段未写入：${churchErr.message}` });
+  } else {
+    out.push({ table: 'churches', rows: 1 });
+  }
 
   // 成员要先写，排班要用它们的 id
   const memberRows = MEMBERS.map(m => ({ ...m, church_id: cid, joined: daysFromNow(-Math.floor(Math.random() * 900) - 30) }));
