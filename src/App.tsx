@@ -34,20 +34,23 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
  * index.html 记着的那个文件名就 404 了，点进任何还没加载过的页面都会炸
  * （TypeError: Failed to fetch dynamically imported module）。
  *
- * 上一版只做了 location.reload()，实测仍会漏：Service Worker 对 /assets/
- * 是 cache-first，而 index.html 还可能命中 HTTP / CDN 缓存 —— 重载后照样
- * 拿到同一份过期清单。所以这里先清掉 SW 缓存，再带时间戳跳转绕开缓存。
- *
- * 闸门：每次失败记时间戳，30 秒内不重复自救，避免 chunk 真的不存在时
- * 陷入无限重载；超出就把错误抛给 ErrorBoundary，让用户看到 Retry。
+ * 闸门按 **chunk 文件名** 记，不按时间。前两版用时间戳是错的：
+ * sessionStorage 在重载后仍然存在，用户重载完很快又点开另一个陈旧页面时，
+ * 时间闸门会把这次**全新的**失败误判成死循环，直接抛给 ErrorBoundary ——
+ * 线上正是这样白屏的。按文件名记则精确：同一个 chunk 只自救一次（真的
+ * 不存在时不会无限重载），换一个 chunk 就重新给一次机会。
  */
 function lazyPage(factory: () => Promise<{ default: React.ComponentType<any> }>) {
   return lazy(() =>
     factory().catch(async (err) => {
-      const KEY = 'chunk_reload_at';
-      const last = Number(sessionStorage.getItem(KEY) || 0);
-      if (Date.now() - last < 30000) throw err;
-      sessionStorage.setItem(KEY, String(Date.now()));
+      const KEY = 'chunk_reload_tried';
+      const chunk = String(err?.message || '').match(/[^/\s]+\.js/)?.[0] || 'unknown';
+
+      let tried: string[] = [];
+      try { tried = JSON.parse(sessionStorage.getItem(KEY) || '[]'); } catch {}
+      if (tried.includes(chunk)) throw err; // 救过一次还失败 → 交给 ErrorBoundary
+
+      try { sessionStorage.setItem(KEY, JSON.stringify([...tried, chunk])); } catch {}
 
       try {
         if ('caches' in window) {
