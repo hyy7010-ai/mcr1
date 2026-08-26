@@ -3,6 +3,7 @@ import { useMode } from '../contexts/ModeContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import { getActiveChurchId } from '../lib/permissions';
+import { isSampleChurch } from '../lib/demoChurch';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../lib/supabase';
 
@@ -125,11 +126,27 @@ export default function About() {
       'https://images.unsplash.com/photo-1511649475669-e288648b2339?q=80&w=600&auto=format&fit=crop',
       'https://images.unsplash.com/photo-1529070532788-757659e6659c?q=80&w=600&auto=format&fit=crop',
     ],
-    team: [
-      { name: 'David Chen', role: t('pastors'), image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=200&auto=format&fit=crop', title: t('pastorShort') },
-      { name: 'Sarah Chen', role: t('pastors'), image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=200&auto=format&fit=crop', title: t('pastorShort') },
-    ]
+    // 团队默认留空 —— 写死的示范名字会出现在每一间真实教会里，那是错的。
+    // 示例教会另给一套虚构阵容，见下面的 useEffect。
+    team: [] as { name: string; role: string; image: string; title: string }[]
   });
+
+  // 示例教会的团队阵容（全部虚构，与会友名单对得上）
+  useEffect(() => {
+    if (!isSampleChurch(church)) return;
+    setAboutData(prev => ({
+      ...prev,
+      founders: '陈约翰牧师夫妇，2009 年与七个家庭在自家客厅开始聚会。',
+      denomination: '独立华人福音派教会',
+      team: [
+        { name: '陈约翰 John Chen', role: t('pastors'), image: '', title: '主任牧师' },
+        { name: '陈师母 Ruth Chen', role: t('pastors'), image: '', title: '师母 · 关怀' },
+        { name: '李美玲 Mary Li',   role: t('pastors'), image: '', title: '传道 · 关怀组' },
+        { name: '林恩慈 Grace Lin', role: t('pastors'), image: '', title: '敬拜带领' },
+        { name: '王大卫 David Wang', role: t('pastors'), image: '', title: '青年团契负责' },
+      ],
+    }));
+  }, [church?.id]);
 
   useEffect(() => {
     if (church) {

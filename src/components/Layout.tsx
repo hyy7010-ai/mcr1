@@ -41,8 +41,10 @@ export default function Layout() {
       const res = await resetDemoChurch();
       const failed = res.filter(r => r.error);
       const rows = res.reduce((n, r) => n + r.rows, 0);
+      // 只给表名没法定位问题，把第一条真实报错也带出来；完整回执进控制台。
+      if (failed.length) console.error('[示例教会] 播种回执', res);
       setSeedMsg(failed.length
-        ? `${rows} 行已写入，${failed.length} 张表失败：${failed.map(f => f.table).join(', ')}`
+        ? `${rows} 行已写入 · ${failed.length} 张表失败（${failed.map(f => f.table).join(', ')}）· ${failed[0].table}: ${failed[0].error}`
         : `✓ 已填充 ${rows} 行，刷新看看`);
       if (!failed.length) setTimeout(() => window.location.reload(), 1200);
     } catch (e: any) {
@@ -236,7 +238,6 @@ export default function Layout() {
       { icon: 'newspaper', label: t('bulletin') || 'Weekly Bulletin', path: '/app/bulletin' },
       { icon: 'menu_book', label: t('publications') || '免费刊物', path: '/app/publications' },
       { icon: 'auto_awesome', label: isZh ? 'PPT 制作工具' : 'PPT Creator', path: 'https://www.liftppt.com/', external: true, featureKey: '/app/songs' },
-      { icon: 'present_to_all', label: t('readyPptLib'), path: '/app/ready' },
       { icon: 'volunteer_activism', label: isZh ? '祷告工坊' : 'Prayer', path: '/app/prayer' },
       { icon: 'diversity_3', label: isZh ? '互动社区' : 'Community', path: '/app/community' },
       { icon: 'forum', label: isZh ? '消息' : 'Messages', path: '/app/messages' },
@@ -682,7 +683,7 @@ export default function Layout() {
                 : 'Exploring the sample church — read-only. Found something useful? Copy it to your own church.'}
             </p>
             {seedMsg && (
-              <span className="shrink-0 text-[11px] font-bold text-white/80 whitespace-nowrap">{seedMsg}</span>
+              <span className="min-w-0 flex-1 text-[11px] font-bold text-white/80 line-clamp-2" title={seedMsg}>{seedMsg}</span>
             )}
             {isPlatformAdmin && (
               <button

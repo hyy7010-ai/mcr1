@@ -1713,7 +1713,6 @@ export default function Songs() {
                           <button
                             onClick={() => {
                               weeklySetlist.forEach(s => saveToReadyPPT(s, s.customBg || selectedBg));
-                              setTimeout(() => { navigate('/app/ready'); }, 1800);
                             }}
                             className="flex-1 py-4 bg-white text-[#2C2C2C] border-2 border-emerald-600/20 rounded-[20px] font-black text-[10px] uppercase tracking-[0.15em] hover:bg-emerald-50 transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95"
                           >
