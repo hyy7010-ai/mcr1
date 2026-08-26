@@ -14,6 +14,7 @@ export const FEATURE_MODULES: FeatureModule[] = [
   { key: '/app/members',      icon: 'group',              en: 'Members',          zh: '会友' },
   { key: '/app/groups',       icon: 'groups',             en: 'Groups',           zh: '小组' },
   { key: '/app/roster',       icon: 'calendar_month',     en: 'Service Roster',   zh: '服事排班' },
+  { key: '/app/attendance',   icon: 'how_to_reg',         en: 'Attendance',       zh: '主日出席' },
   { key: '/app/songs',        icon: 'auto_awesome',       en: 'PPT Creator (LiftPPT)', zh: 'PPT 制作（LiftPPT）' },
   { key: '/app/publications', icon: 'menu_book',          en: 'Publications',     zh: '出版物' },
   { key: '/app/bulletin',     icon: 'newspaper',          en: 'Weekly Bulletin',  zh: '每周周报' },
