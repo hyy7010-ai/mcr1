@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { dayKey } from '../services/lifeService';
 
 /**
  * 示例教会（Demo Church / sample tenant）
@@ -54,7 +55,10 @@ export const sampleVisit = {
    全部集中在这里，改文案不用翻代码。日期按「相对今天」算，示例永远不过期。
    ────────────────────────────────────────────────────────────────────── */
 
-const iso = (d: Date) => d.toISOString().slice(0, 10);
+// 按**本地**日期格式化。用 toISOString() 会走 UTC —— 在 UTC+10 这种时区，
+// 本地周日 00:00 转成 UTC 就退回周六，整份示例数据的日期全差一天。
+const iso = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 /** 从今天往后数第 n 个主日（n=0 即最近的一个）。 */
 function nextSunday(n = 0): string {
@@ -191,7 +195,11 @@ const CHURCH_PROFILE = {
   setup_progress: { info: true, group: true, logo: true, invite: true },
 };
 
-export const DEFAULT_ROSTER_ROLES = ['讲员', '主领', '司琴', '音响', '投影', '招待'];
+// 用 App 本来就认得的岗位名 —— 仪表盘的排班表按这些字符串匹配列
+// （见 Dashboard 的 getRoleNames），自己另起名字会导致整张表都是「—」。
+export const DEFAULT_ROSTER_ROLES = [
+  '讲道', '敬拜', '乐手', '吉他', '音响', '媒体', '儿童主日学', '招待', '迎宾', '厨房',
+];
 const ROSTER_ROLES = DEFAULT_ROSTER_ROLES;
 
 const LIFE: { kind: string; data: any; author_name?: string }[] = [
@@ -781,3 +789,93 @@ export const SAMPLE_DMS: Record<string, { from: 'me' | 'them'; text: string }[]>
     { from: 'them', text: '谢谢！周六练习 15:00 开始，麻烦提醒一下新来的两位。' },
   ],
 };
+
+
+/* ── 仪表盘 · 今日灵修 / 人员 / 服务排班 ─────────────────────────────────
+   这几块都读数据库（church_life、profiles、rosters），示例教会里要么空、
+   要么取决于点没点过「填充示例内容」。统一给常量。
+   ────────────────────────────────────────────────────────────────────── */
+
+/** 确定性伪随机：同一天打开看到的热力图一样，不会每次刷新都在跳。 */
+function seeded(n: number): number {
+  const x = Math.sin(n * 12.9898) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+/**
+ * 近 200 天的打卡记录。越近越密（模拟习惯逐渐养成），今天三项全打，
+ * 保证连续天数和热力图都不是 0。
+ */
+export function sampleCheckins(userId: string) {
+  const out: { date: string; type: 'read' | 'pray' | 'devotion' | 'sunday'; user_id: string }[] = [];
+  const types = ['read', 'pray', 'devotion'] as const;
+  for (let back = 0; back < 200; back++) {
+    const d = new Date();
+    d.setDate(d.getDate() - back);
+    const key = dayKey(d);
+    if (back === 0) {
+      types.forEach(t => out.push({ date: key, type: t, user_id: userId }));
+      continue;
+    }
+    // 越久以前越稀疏：近 30 天约八成，200 天前约三成
+    const density = 0.8 - (back / 200) * 0.5;
+    types.forEach((t, i) => {
+      if (seeded(back * 3 + i) < density) out.push({ date: key, type: t, user_id: userId });
+    });
+    if (d.getDay() === 0 && seeded(back) < 0.85) out.push({ date: key, type: 'sunday', user_id: userId });
+  }
+  return out;
+}
+
+export const SAMPLE_NOTICES = [
+  { title: '本周主日因暴雨改为线上聚会', level: 'urgent', body: '气象局已发布暴雨预警。主日上午 10:00 请从教会公众号进入线上聚会室，爱筵取消。行动不便的长者若需要接送，请联系许恩光弟兄。', by: '陈约翰 John Chen' },
+  { title: '冬令营招募同工', level: 'info', body: '7 月 12–14 日青年冬令营，招募厨务、活动、摄影同工各 2 名，请向王大卫报名。', by: '王大卫 David Wang' },
+  { title: '停车场施工，本月改停后街', level: 'info', body: '教会停车场重铺，预计三周。主日请停在 Forest Rd 后街，招待同工会引导。', by: '黄喜乐 Joy Huang' },
+];
+
+/** 本月每个主日 + 往后四个主日的排班；仪表盘看的是本月，只排未来会一片空。 */
+export function sampleRoster() {
+  // 每个岗位备两三个人轮着来，看起来才像真的排班表而不是复制粘贴
+  const pool: Record<string, string[]> = {
+    '讲道':       ['陈约翰 John Chen', '王大卫 David Wang', '李美玲 Mary Li'],
+    '敬拜':       ['林恩慈 Grace Lin', '郑安德 Andrew Zheng'],
+    '乐手':       ['刘平安 Peace Liu', '林恩慈 Grace Lin'],
+    '吉他':       ['王大卫 David Wang', '郑安德 Andrew Zheng'],
+    '音响':       ['张保罗 Paul Zhang', '许恩光 Simon Xu'],
+    '媒体':       ['郑安德 Andrew Zheng', '何静文 Jenny He'],
+    '儿童主日学': ['吴信实 Faith Wu', '张丽华 Lily Zhang'],
+    '招待':       ['黄喜乐 Joy Huang', '张丽华 Lily Zhang', '许恩光 Simon Xu'],
+    '迎宾':       ['孙恩典 Gift Sun', '赵小雨 Rain Zhao'],
+    '厨房':       ['陈师母 Ruth Chen', '马利亚 Maria Ma', '何静文 Jenny He'],
+  };
+
+
+  const staffById: Record<string, string> = {};
+  const staffList = MEMBERS.map(m => {
+    const id = `demo-staff-${m.initials}-${m.phone.slice(-3)}`;
+    staffById[id] = m.name;
+    return { id, name: m.name, initials: m.initials, role: m.role.join(' / ') || m.occupation };
+  });
+  const idOf = (name: string) => staffList.find(s => s.name === name)?.id || '';
+
+  // 本月 1 号到往后四周之间的所有主日
+  const sundays: string[] = [];
+  const cur = new Date();
+  const d = new Date(cur.getFullYear(), cur.getMonth(), 1);
+  d.setDate(d.getDate() + ((7 - d.getDay()) % 7)); // 本月第一个主日
+  const end = new Date();
+  end.setDate(end.getDate() + 28);
+  for (; d <= end; d.setDate(d.getDate() + 7)) sundays.push(iso(d));
+
+  const assignments: Record<string, { staffId: string; role: string }[]> = {};
+  sundays.forEach((date, w) => {
+    assignments[date] = DEFAULT_ROSTER_ROLES
+      .map(role => {
+        const cands = pool[role] || [];
+        return { staffId: idOf(cands[w % cands.length] || ''), role };
+      })
+      .filter(a => a.staffId);
+  });
+
+  return { staffList: staffList.map(({ name, initials, role }) => ({ name, initials, role })), staffById, assignments };
+}

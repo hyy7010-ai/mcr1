@@ -14,6 +14,7 @@ import { logActivity } from '../services/activityService';
 import { format, eachDayOfInterval, startOfMonth, endOfMonth, getDay } from 'date-fns';
 import ChurchSetupChecklist from '../components/ChurchSetupChecklist';
 import DailyDevotion from '../components/DailyDevotion';
+import { isSampleChurch, sampleRoster } from '../lib/demoChurch';
 
 const verses = [
   { quote: "verse1_quote", ref: "Hebrews 11:1" },
@@ -227,6 +228,15 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!activeChurchId) return;
+    // 示例教会：人员来自 profiles（没有登录账号）、排班来自 rosters（要先点
+    // 填充按钮），两个都会是空的。直接用常量。
+    if (isSampleChurch(church)) {
+      const { staffList, staffById, assignments } = sampleRoster();
+      setDashboardStaffList(staffList);
+      setDashboardStaffById(staffById);
+      setDashboardAssignments(assignments);
+      return;
+    }
     const monthStr = format(new Date(), 'yyyy-MM');
     Promise.all([
       memberService.getMembers(activeChurchId),
