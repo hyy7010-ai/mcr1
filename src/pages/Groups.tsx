@@ -4,7 +4,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useMode } from '../contexts/ModeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { getActiveChurchId } from '../lib/permissions';
-import { isSampleChurch, SAMPLE_GROUPS, SAMPLE_GROUP_POSTS } from '../lib/demoChurch';
+import { isSampleChurch, SAMPLE_GROUPS, SAMPLE_GROUP_POSTS, SAMPLE_GROUP_OF } from '../lib/demoChurch';
 
 /** 数据库慢或连不上时，小组列表照样要出来 —— 名单空着也好过一直转圈。 */
 function withTimeout<T>(p: PromiseLike<T>, ms = 6000): Promise<T> {
@@ -147,7 +147,13 @@ export default function Groups() {
       ).catch(() => ({ data: [] as any[] }));
 
       const profiles: any[] = sample
-        ? (profilesData || []).map((m: any) => ({ id: m.id, full_name: m.name, role: m.status, avatar_url: '', family: m.family }))
+        ? (profilesData || []).map((m: any) => ({
+            id: m.id, full_name: m.name, role: m.status, avatar_url: '',
+            // 归属按姓名查常量表。不看 church_members.family —— 库里已有的
+            // 会友那一列还是旧值（陈家/林家…），跟组名对不上就全成 0 人，
+            // 而且不该要求用户先去点一次「填充示例内容」。
+            family: SAMPLE_GROUP_OF[String(m.name || '').split(' ')[0]] || m.family,
+          }))
         : ((profilesData || []) as any[]);
 
       const memberships = sample

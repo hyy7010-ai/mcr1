@@ -106,7 +106,7 @@ export const SAMPLE_GROUPS = [
 /** 会友 → 所属小组。church_members.family 这一列在 UI 上就叫「所属小组」，
  *  直接用它，不去碰 church_group_members —— 那张表的 profile_id 是指向
  *  profiles 的外键，示例教会没有真实账号，塞进去会违反约束。 */
-const GROUP_OF: Record<string, string> = {
+export const SAMPLE_GROUP_OF: Record<string, string> = {
   '陈约翰': '以便以谢小组', '陈师母': '以便以谢小组', '李美玲': '以便以谢小组',
   '张丽华': '以便以谢小组', '何静文': '以便以谢小组', '马利亚': '以便以谢小组',
   '林恩慈': '葡萄树小组',   '王大卫': '葡萄树小组',   '郑安德': '葡萄树小组',
@@ -425,7 +425,7 @@ export async function resetDemoChurch(): Promise<SeedResult[]> {
     : { table: 'churches', rows: churchDone ? 1 : 0, error: churchDone ? `仅写入 ${churchDone}：${churchErr}` : churchErr });
 
   // 成员要先写，排班要用它们的 id
-  const memberRows = MEMBERS.map(m => ({ ...m, church_id: cid, family: GROUP_OF[m.name.split(' ')[0]] || m.family, joined: daysFromNow(-Math.floor(Math.random() * 900) - 30) }));
+  const memberRows = MEMBERS.map(m => ({ ...m, church_id: cid, family: SAMPLE_GROUP_OF[m.name.split(' ')[0]] || m.family, joined: daysFromNow(-Math.floor(Math.random() * 900) - 30) }));
   await supabase.from('church_members').delete().eq('church_id', cid);
   const { data: members, error: memErr } = await supabase.from('church_members').insert(memberRows).select('id, name, status');
   out.push({ table: 'church_members', rows: members?.length ?? 0, error: memErr?.message });
