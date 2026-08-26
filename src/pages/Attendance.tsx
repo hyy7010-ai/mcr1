@@ -6,6 +6,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useMode } from '../contexts/ModeContext';
 import { getActiveChurchId, isDemoChurch } from '../lib/permissions';
 import { isSampleChurch, sampleAttendance } from '../lib/demoChurch';
+import AttendanceTrend from '../components/AttendanceTrend';
 import { memberService, Member } from '../services/memberService';
 import { logActivity } from '../services/activityService';
 
@@ -282,6 +283,11 @@ export default function Attendance() {
         <p className="text-[11px] font-black text-outline uppercase tracking-[0.2em] opacity-60">
           {t('attendanceDesc')}
         </p>
+      </div>
+
+      {/* 人数走势 —— 两条记录以上才画，否则组件自己返回 null */}
+      <div className="px-6 md:px-8 pt-6 shrink-0">
+        <AttendanceTrend points={records.map(r => ({ date: r.service_date, headcount: r.headcount }))} />
       </div>
 
       <div className="flex flex-1 min-h-0 overflow-hidden">

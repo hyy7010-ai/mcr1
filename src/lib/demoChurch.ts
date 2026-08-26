@@ -905,7 +905,7 @@ export function sampleAttendance(memberIds: string[] = []) {
     date.setDate(date.getDate() - w * 7);
     // 一年前约 100 人，稳步长到约 130；叠加 ±8 的周波动
     const trend = 130 - (w / 52) * 30;
-    const wobble = (seeded(w * 7.7) - 0.5) * 16;
+    const wobble = (seeded(w * 7.7) - 0.5) * 10; // ±5，再大就盖过趋势变成噪点
     const peak = (w === 13 || w === 39) ? 28 : 0; // 复活节 / 圣诞那两周
     const headcount = Math.max(60, Math.round(trend + wobble + peak));
     // 到会名单取前若干位，人数对得上就行
