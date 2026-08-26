@@ -149,17 +149,33 @@ export const SAMPLE_TASKS = () => TASKS.map((t, i) => ({
   category: t.category,
 }));
 
-const PRAYERS = [
-  { content: '求主医治我父亲的膝盖手术，下周三开刀。也求主赐我们全家平安与信心，不被恐惧抓住。', tag: 'health', author_name: '李美玲 Mary Li',   anonymous: false, prayed_count: 23 },
-  { content: '为下周的工作面试祷告，求主开路。也求主让我在职场中作光作盐，不只是求一份薪水。', tag: 'work',   author_name: '郑安德 Andrew Zheng', anonymous: false, prayed_count: 11 },
-  { content: '孩子刚上中学，求主保守他交对朋友，也求主给我们做父母的智慧，知道什么时候该管、什么时候该放手。', tag: 'family', author_name: '', anonymous: true,  prayed_count: 17 },
-  { content: '求主指引我毕业后的方向，是继续升学还是先工作，求主让我心里有平安，不被同学的比较搅扰。', tag: 'future', author_name: '', anonymous: true,  prayed_count: 8 },
-  { content: '感谢主！上个月提的搬家代祷已经蒙应允，新住处离教会只要十分钟，孩子上学也方便。', tag: 'other',  author_name: '黄喜乐 Joy Huang', anonymous: false, prayed_count: 31 },
-  { content: '先生还没信主，每次我来教会他都不太高兴。求主软化他的心，也求主让我先活出来，而不是只会讲道理。', tag: 'family', author_name: '', anonymous: true, prayed_count: 42 },
-  { content: '公司在裁员，这个月已经走了三个同事。求主保守，也求主让我在不安里学会倚靠而不是焦虑。', tag: 'work', author_name: '张保罗 Paul Zhang', anonymous: false, prayed_count: 19 },
-  { content: '妈妈的检查报告下周出来，求主怜悯。她一个人在国内，我这边什么忙都帮不上，心里很难受。', tag: 'health', author_name: '', anonymous: true, prayed_count: 28 },
-  { content: '为教会的场地祷告。租约明年到期，房东说要涨三成，求主预备合适的地方，也让同工们同心。', tag: 'future', author_name: '陈约翰 John Chen', anonymous: false, prayed_count: 36 },
+/**
+ * 示范代祷。三种状态都要有，否则祷告墙管理视图的「待审核」「内部」
+ * 两个页签在样板间里是空的，看不出这个功能是干什么的。
+ */
+export const SAMPLE_PRAYERS = [
+  // ── 已发布：全教会可见 ──────────────────────────────────────────────
+  { content: '求主医治我父亲的膝盖手术，下周三开刀。也求主赐我们全家平安与信心，不被恐惧抓住。', tag: 'health', authorName: '李美玲 Mary Li',   anonymous: false, prayedCount: 23, status: 'Published', visibility: 'All Church' },
+  { content: '为下周的工作面试祷告，求主开路。也求主让我在职场中作光作盐，不只是求一份薪水。', tag: 'work',   authorName: '郑安德 Andrew Zheng', anonymous: false, prayedCount: 11, status: 'Published', visibility: 'All Church' },
+  { content: '孩子刚上中学，求主保守他交对朋友，也求主给我们做父母的智慧，知道什么时候该管、什么时候该放手。', tag: 'family', authorName: '', anonymous: true, prayedCount: 17, status: 'Published', visibility: 'All Church' },
+  { content: '求主指引我毕业后的方向，是继续升学还是先工作，求主让我心里有平安，不被同学的比较搅扰。', tag: 'future', authorName: '', anonymous: true, prayedCount: 8,  status: 'Published', visibility: 'All Church' },
+  { content: '感谢主！上个月提的搬家代祷已经蒙应允，新住处离教会只要十分钟，孩子上学也方便。', tag: 'other',  authorName: '黄喜乐 Joy Huang', anonymous: false, prayedCount: 31, status: 'Published', visibility: 'All Church' },
+  { content: '先生还没信主，每次我来教会他都不太高兴。求主软化他的心，也求主让我先活出来，而不是只会讲道理。', tag: 'family', authorName: '', anonymous: true, prayedCount: 42, status: 'Published', visibility: 'All Church' },
+  { content: '公司在裁员，这个月已经走了三个同事。求主保守，也求主让我在不安里学会倚靠而不是焦虑。', tag: 'work', authorName: '张保罗 Paul Zhang', anonymous: false, prayedCount: 19, status: 'Published', visibility: 'All Church' },
+
+  // ── 待审核：同工尚未放行 ────────────────────────────────────────────
+  { content: '妈妈的检查报告下周出来，求主怜悯。她一个人在国内，我这边什么忙都帮不上，心里很难受。', tag: 'health', authorName: '', anonymous: true, prayedCount: 0, status: 'Pending Approval', visibility: 'All Church' },
+  { content: '为教会的场地祷告。租约明年到期，房东说要涨三成，求主预备合适的地方，也让同工们同心。', tag: 'future', authorName: '陈约翰 John Chen', anonymous: false, prayedCount: 0, status: 'Pending Approval', visibility: 'All Church' },
+  { content: '我和太太最近吵得很凶，已经一周没好好说话了。写下来手都在抖，但我不想就这样下去。', tag: 'family', authorName: '', anonymous: true, prayedCount: 0, status: 'Pending Approval', visibility: 'All Church' },
+  { content: '想为儿子的婚礼献上感恩，六月十二号在主堂，也邀请弟兄姊妹一同来分享喜乐。', tag: 'other', authorName: '许恩光 Simon Xu', anonymous: false, prayedCount: 0, status: 'Pending Approval', visibility: 'All Church' },
+
+  // ── 内部：仅同工 / 仅牧者可见 ───────────────────────────────────────
+  { content: '周姊妹一家上个月开始经济困难，先生工作还没着落。已由关怀组每周送一次菜，请同工代祷，勿外传。', tag: 'family', authorName: '李美玲 Mary Li', anonymous: false, prayedCount: 6, status: 'Internal', visibility: 'Staff' },
+  { content: '青年团契有两位弟兄近期起了争执，已分别约谈，尚未和好。求主亲自作工，同工们暂勿介入议论。', tag: 'other', authorName: '王大卫 David Wang', anonymous: false, prayedCount: 4, status: 'Internal', visibility: 'Staff' },
+  { content: '为下季度的同工调整祷告。敬拜团与关怀组都需要增补人手，牧者会议前请各位先在祷告中寻求。', tag: 'work', authorName: '陈约翰 John Chen', anonymous: false, prayedCount: 9, status: 'Internal', visibility: 'Pastors Only' },
 ];
+
+const PRAYERS = SAMPLE_PRAYERS;
 
 /** 一个填好的教会长什么样。缺了这些，样板间顶上会一直挂着「完成教会设置 0/6」。 */
 const CHURCH_PROFILE = {
@@ -583,8 +599,8 @@ export async function resetDemoChurch(): Promise<SeedResult[]> {
 
   out.push(await wipeAndInsert('church_prayers', PRAYERS.map(p => ({
     church_id: cid, content: p.content, tag: p.tag, anonymous: p.anonymous,
-    author_name: p.anonymous ? 'Anonymous' : p.author_name,
-    author_email: '', visibility: 'All Church', status: 'Published', prayed_count: p.prayed_count,
+    author_name: p.anonymous ? 'Anonymous' : p.authorName,
+    author_email: '', visibility: p.visibility, status: p.status, prayed_count: p.prayedCount,
   }))));
 
   out.push(await wipeAndInsert('church_life', LIFE.map(l => ({

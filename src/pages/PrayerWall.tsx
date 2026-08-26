@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabase';
 import { tValue } from '../lib/valueLabels';
 import { tr } from '../lib/uiText';
 import { motion, AnimatePresence } from 'motion/react';
+import { isSampleChurch, SAMPLE_PRAYERS } from '../lib/demoChurch';
 
 type Visibility = 'All Church' | 'Staff' | 'Pastors Only' | 'My Eyes Only';
 
@@ -87,6 +88,23 @@ export default function PrayerWall() {
   useEffect(() => {
     if (!activeChurchId) return;
     setDisplayLimit(20);
+    // 示例教会用常量：三种状态（已发布 / 待审核 / 内部）都要齐，否则管理
+    // 视图那两个页签在样板间里是空的。也不该取决于点没点过「填充示例内容」。
+    if (isSampleChurch(church)) {
+      setRequests(SAMPLE_PRAYERS.map((p, i) => ({
+        id: `demo-prayer-${i}`,
+        content: p.content,
+        anonymous: p.anonymous,
+        authorName: p.anonymous ? 'Anonymous' : p.authorName,
+        authorEmail: '',
+        visibility: p.visibility as Visibility,
+        status: p.status as Status,
+        createdAt: new Date(Date.now() - (i + 1) * 432e5).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+        prayedCount: p.prayedCount,
+        tag: p.tag as Tag,
+      })));
+      return;
+    }
     supabase.from('church_prayers').select('*').eq('church_id', activeChurchId).order('created_at', { ascending: false })
       .then(({ data, error }) => {
         if (!error && data) setRequests(data.map(fromRow));
