@@ -241,11 +241,16 @@ const ACTIVITY = [
   { action: '开启新点收',       target: `${nextSunday(-1)} 主日奉献`, type: 'System', user_name: '马利亚 Maria Ma', user_role: 'Staff', note: null },
 ];
 
-const PUBLICATIONS = [
-  { title: '恩典季刊 · 春季号',   description: '本季主题：在患难中的盼望。含牧者的话、见证专栏、事工回顾。', category: '季刊',   file_name: 'grace-quarterly-spring.pdf', file_size: '4.2MB' },
-  { title: '新朋友手册',         description: '教会简介、聚会时间、各团契介绍，给第一次来的朋友。',       category: '手册',   file_name: 'newcomer-guide.pdf',        file_size: '1.8MB' },
-  { title: '受洗预备课程讲义',   description: '六课讲义，配合新信徒门徒成长班使用。',                     category: '教材',   file_name: 'baptism-course.pdf',        file_size: '2.6MB' },
-  { title: '年度事工报告',       description: '各部门全年事工回顾与财务摘要。',                           category: '报告',   file_name: 'annual-report.pdf',         file_size: '5.1MB' },
+/** 免费刊物。category 必须是 Publications 页认的五个值之一。 */
+export const SAMPLE_PUBLICATIONS = [
+  { title: '恩典季刊 · 春季号',       description: '本季主题「在患难中的盼望」。含牧者的话、三篇见证、各部门事工回顾，以及儿童版折页。', category: 'Newsletter',  file_name: 'grace-quarterly-spring.pdf', file_size: 4.2 },
+  { title: '新朋友手册',             description: '教会简介、聚会时间、各团契介绍、常见问题。第一次来的朋友建议先看这本，十分钟读完。', category: 'Other',       file_name: 'newcomer-guide.pdf',         file_size: 1.8 },
+  { title: '受洗预备课程讲义',       description: '六课讲义，配合新信徒门徒成长班使用。每课附经文、讨论问题与一周作业。',                 category: 'Bible Study', file_name: 'baptism-course.pdf',         file_size: 2.6 },
+  { title: '罗马书查经手册',         description: '全书十六章，按段落分 24 课。小组长版另附带组提示与常见问题解答。',                     category: 'Bible Study', file_name: 'romans-study.pdf',           file_size: 5.4 },
+  { title: '每日灵修 · 诗篇三十天',   description: '一天一篇，含经文、默想问题与祷告范文。适合刚开始建立灵修习惯的弟兄姊妹。',             category: 'Devotional',  file_name: 'psalms-30-days.pdf',         file_size: 3.1 },
+  { title: '讲道集 · 登山宝训系列',   description: '陈约翰牧师马太福音 5–7 章共十二讲的讲章整理，含每讲的经文大纲。',                     category: 'Sermon',      file_name: 'sermon-on-the-mount.pdf',    file_size: 6.8 },
+  { title: '亲子灵修 · 睡前十分钟',   description: '给学龄前到小学的家庭。每晚一个圣经小故事加一个问题，爸妈可以直接照着念。',             category: 'Devotional',  file_name: 'family-devotion.pdf',        file_size: 2.9 },
+  { title: '年度事工报告',           description: '各部门全年事工回顾、出席与奉献摘要、明年方向。会员大会资料。',                         category: 'Other',       file_name: 'annual-report.pdf',          file_size: 5.1 },
 ];
 
 // 一律用公有领域的古典圣诗，只放开头一两行作示意，避免版权问题
@@ -447,8 +452,8 @@ export async function resetDemoChurch(): Promise<SeedResult[]> {
 
   out.push(await wipeAndInsert('church_finance', FINANCE.map(f => ({ ...f, church_id: cid }))));
   out.push(await wipeAndInsert('activity_logs', ACTIVITY.map(a => ({ ...a, church_id: cid, user_id: null }))));
-  out.push(await wipeAndInsert('church_publications', PUBLICATIONS.map(p => ({
-    ...p, church_id: cid, file_url: '', created_by: '陈约翰 John Chen',
+  out.push(await wipeAndInsert('church_publications', SAMPLE_PUBLICATIONS.map(p => ({
+    ...p, file_size: `${p.file_size}MB`, church_id: cid, file_url: '', created_by: '陈约翰 John Chen',
   }))));
   out.push(await wipeAndInsert('songs', SONGS.map(x => ({ ...x, church_id: cid }))));
 

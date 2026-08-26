@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useMode } from '../contexts/ModeContext';
 import { getActiveChurchId, isDemoChurch, canManageChurch } from '../lib/permissions';
-import { isSampleChurch } from '../lib/demoChurch';
+import { isSampleChurch, SAMPLE_PUBLICATIONS } from '../lib/demoChurch';
 import { supabase } from '../lib/supabase';
 import { logActivity } from '../services/activityService';
 
@@ -547,6 +547,25 @@ export default function Publications() {
   // ── Load publications ──────────────────────────────────────────────────────
   const loadPublications = async () => {
     setIsLoading(true);
+
+    // 示例教会直接用常量 —— 示范内容不该取决于用户点没点过「填充示例内容」
+    if (isSampleChurch(church)) {
+      setPublications(SAMPLE_PUBLICATIONS.map((p, i) => ({
+        id: `demo-pub-${i}`,
+        church_id: activeChurchId || '',
+        title: p.title,
+        description: p.description,
+        category: p.category as any,
+        file_url: '',
+        file_name: p.file_name,
+        file_size: p.file_size,
+        created_by: '陈约翰 John Chen',
+        created_at: new Date(Date.now() - (i + 1) * 864e5).toISOString(),
+      })));
+      setIsLoading(false);
+      return;
+    }
+
     try {
       if (!isDemo && activeChurchId) {
         const { data, error } = await supabase
