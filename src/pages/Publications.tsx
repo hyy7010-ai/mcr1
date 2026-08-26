@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useMode } from '../contexts/ModeContext';
 import { getActiveChurchId, isDemoChurch, canManageChurch } from '../lib/permissions';
+import { isSampleChurch } from '../lib/demoChurch';
 import { supabase } from '../lib/supabase';
 import { logActivity } from '../services/activityService';
 
@@ -531,7 +532,8 @@ export default function Publications() {
   const activeChurchId = getActiveChurchId(profile, church);
   // Only treat as demo when there's truly no church ID available
   const isDemo = !activeChurchId || isDemoChurch(church) && !profile?.church_id;
-  const isManager = canManageChurch(profile, user);
+  // 示例教会只读 —— 不留点了会污染样板间（或被 RLS 拒绝）的按钮
+  const isManager = canManageChurch(profile, user) && !isSampleChurch(church);
 
   const STORAGE_KEY = `publications_${activeChurchId || 'default'}`;
 

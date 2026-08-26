@@ -4,6 +4,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useMode } from '../contexts/ModeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { getActiveChurchId } from '../lib/permissions';
+import { isSampleChurch } from '../lib/demoChurch';
 import { supabase } from '../lib/supabase';
 import { resolveSlideColors, paginateLyrics, expandSongSections, PPT_TEXT_SHADOW, PREVIEW_TEXT_SHADOW } from '../lib/pptTheme';
 import { pinyin } from 'pinyin-pro';
@@ -40,7 +41,7 @@ export default function ReadyPPT() {
   const { mode } = useMode();
   const { profile, church, user } = useAuth();
   const activeChurchId = getActiveChurchId(profile, church);
-  const isManager = mode === 'Manager';
+  const isManager = mode === 'Manager' && !isSampleChurch(church);
   // Church-specific localStorage key helper
   const churchKey = (base: string) => `${base}_${activeChurchId || 'demo'}`;
 
