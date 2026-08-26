@@ -3,8 +3,10 @@ import { supabase } from './supabase';
 /**
  * 示例教会（Demo Church / sample tenant）
  *
- * 全平台共用一条教会记录，装满示例数据，任何登录用户都能切进去参观、随便试，
- * Super Admin 可在平台管理控制台一键重置。UUID 与 supabase_demo_church.sql 保持一致。
+ * 全平台共用一条教会记录，装满示例数据，任何登录用户都能切进去参观。
+ * **对所有人只读**（RLS 保证），只有平台管理员能写 —— 共用一个教会又人人可写的话，
+ * 第一个删掉示例排班的人就毁了后面所有访客的样板间。用户想留下什么，走
+ * copyFromSample()，把结构复制进自己的教会。UUID 与 supabase_demo_church.sql 一致。
  *
  * 注意：别和 `demo-church-id` 混淆 —— 那个是「该用户还没分配教会」的占位符
  * （见 lib/permissions.ts 的 isDemoChurch），含义正好相反。
@@ -97,7 +99,22 @@ const PRAYERS = [
   { content: '感谢主！上个月提的搬家代祷已经蒙应允，新住处离教会只要十分钟。', tag: 'other',  author_name: '黄喜乐 Joy Huang', anonymous: false, prayed_count: 31 },
 ];
 
-const ROSTER_ROLES = ['讲员', '主领', '司琴', '音响', '投影', '招待'];
+/** 一个填好的教会长什么样。缺了这些，样板间顶上会一直挂着「完成教会设置 0/6」。 */
+const CHURCH_PROFILE = {
+  location: '123 Forest Road, Hurstville NSW 2220',
+  phone: '(02) 9580 0000',
+  website: 'https://demo.gracesystem.org',
+  meeting_time: '主日 10:00 联合崇拜 · 周五 19:30 青年团契',
+  description: '一间华人移民教会的示范档案 —— 这里的人名、排班、代祷都是虚构的，用来展示每个页面填满之后的样子。',
+  // 内联 SVG，不依赖任何外部图床
+  logo_url: 'data:image/svg+xml;utf8,' + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="%232C2C2C"/><path d="M32 12v10M27 17h10M32 22 20 32v18h24V32L32 22Z" fill="none" stroke="%23F4F1EE" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/></svg>'
+  ),
+  setup_progress: { info: true, group: true, logo: true, invite: true },
+};
+
+export const DEFAULT_ROSTER_ROLES = ['讲员', '主领', '司琴', '音响', '投影', '招待'];
+const ROSTER_ROLES = DEFAULT_ROSTER_ROLES;
 
 const LIFE: { kind: string; data: any; author_name?: string }[] = [
   { kind: 'notice', data: { title: '本周主日因暴雨改为线上聚会', body: '气象局已发布暴雨预警。主日上午 10:00 请从教会公众号进入线上聚会室，爱筵取消。', level: 'urgent' }, author_name: '陈约翰 John Chen' },
@@ -149,7 +166,17 @@ export async function resetDemoChurch(): Promise<SeedResult[]> {
   const cid = DEMO_CHURCH_ID;
 
   // 教会记录本身（SQL 脚本已建好，这里只补名字，跑过就当没事）
-  await supabase.from('churches').update({ name: DEMO_CHURCH_NAME }).eq('id', cid);
+  // 整份资料一次写；某个列在这套库里不存在时退回只写必须的两项，
+  // 不能因为一个可选列把整次重置搞失败。
+  const full = { name: DEMO_CHURCH_NAME, roster_roles: DEFAULT_ROSTER_ROLES, ...CHURCH_PROFILE };
+  const { error: churchErr } = await supabase.from('churches').update(full).eq('id', cid);
+  if (churchErr) {
+    const { error: minErr } = await supabase.from('churches')
+      .update({ name: DEMO_CHURCH_NAME, roster_roles: DEFAULT_ROSTER_ROLES }).eq('id', cid);
+    out.push({ table: 'churches', rows: minErr ? 0 : 1, error: minErr?.message ?? `部分字段未写入：${churchErr.message}` });
+  } else {
+    out.push({ table: 'churches', rows: 1 });
+  }
 
   // 成员要先写，排班要用它们的 id
   const memberRows = MEMBERS.map(m => ({ ...m, church_id: cid, joined: daysFromNow(-Math.floor(Math.random() * 900) - 30) }));
@@ -185,4 +212,80 @@ export async function resetDemoChurch(): Promise<SeedResult[]> {
   }
 
   return out;
+}
+
+/* ── 复制到我的教会 ───────────────────────────────────────────────────────
+   示例教会是只读的，用户看中什么就把「结构」复制进自己的教会。
+   刻意只复制骨架，不复制假人和假代祷 —— 往真实名册里灌 12 个虚构会友
+   是在给人添乱，而不是帮忙。
+   ────────────────────────────────────────────────────────────────────── */
+
+export type CopyKind = 'roster_roles' | 'course' | 'resource';
+
+export const COPY_KINDS: { kind: CopyKind; zh: string; en: string }[] = [
+  { kind: 'roster_roles', zh: '排班岗位设置', en: 'Roster roles' },
+  { kind: 'course',       zh: '课程大纲',     en: 'Course outlines' },
+  { kind: 'resource',     zh: '资源目录',     en: 'Resource library' },
+];
+
+/** total = 示例教会里这一类总共有几项；用来把「源是空的」和「你已经有了」区分开。 */
+/** 数据库连不上时别把按钮永远卡在「复制中」。 */
+function withTimeout<T>(p: PromiseLike<T>, ms = 8000): Promise<T> {
+  return Promise.race([
+    Promise.resolve(p),
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
+  ]);
+}
+
+export interface CopyResult { copied: number; skipped: number; total: number; error?: string }
+
+/**
+ * 把示例教会的某一类结构复制进目标教会。
+ *
+ * - 岗位设置走并集，不覆盖用户已有的岗位；
+ * - 课程/资源按标题去重，重复的跳过，所以重复点不会灌出一堆副本；
+ * - 复制进来的行带 from_sample 标记，将来要清理找得到。
+ */
+export async function copyFromSample(kind: CopyKind, targetChurchId: string): Promise<CopyResult> {
+  if (!targetChurchId || targetChurchId === DEMO_CHURCH_ID) {
+    return { copied: 0, skipped: 0, total: 0, error: 'no target church' };
+  }
+
+  try {
+    if (kind === 'roster_roles') {
+      const [{ data: sample }, { data: mine }] = await withTimeout(Promise.all([
+        supabase.from('churches').select('roster_roles').eq('id', DEMO_CHURCH_ID).maybeSingle(),
+        supabase.from('churches').select('roster_roles').eq('id', targetChurchId).maybeSingle(),
+      ]));
+      const from: string[] = (sample as any)?.roster_roles || DEFAULT_ROSTER_ROLES;
+      const existing: string[] = (mine as any)?.roster_roles || [];
+      const added = from.filter(r => !existing.includes(r));
+      if (!added.length) return { copied: 0, skipped: from.length, total: from.length };
+      const { error } = await withTimeout(supabase.from('churches')
+        .update({ roster_roles: [...existing, ...added] }).eq('id', targetChurchId));
+      if (error) return { copied: 0, skipped: 0, total: from.length, error: error.message };
+      return { copied: added.length, skipped: from.length - added.length, total: from.length };
+    }
+
+    const [{ data: sample }, { data: mine }] = await withTimeout(Promise.all([
+      supabase.from('church_life').select('kind, data').eq('church_id', DEMO_CHURCH_ID).eq('kind', kind),
+      supabase.from('church_life').select('data').eq('church_id', targetChurchId).eq('kind', kind),
+    ]));
+    const have = new Set((mine || []).map((r: any) => r.data?.title));
+    const rows = (sample || [])
+      .filter((r: any) => r.data?.title && !have.has(r.data.title))
+      .map((r: any) => ({
+        church_id: targetChurchId, kind,
+        data: { ...r.data, from_sample: true },
+        author_id: null, author_name: null,
+      }));
+    const total = (sample || []).length;
+    const skipped = total - rows.length;
+    if (!rows.length) return { copied: 0, skipped, total };
+    const { error } = await withTimeout(supabase.from('church_life').insert(rows));
+    if (error) return { copied: 0, skipped, total, error: error.message };
+    return { copied: rows.length, skipped, total };
+  } catch (e: any) {
+    return { copied: 0, skipped: 0, total: 0, error: e?.message || String(e) };
+  }
 }

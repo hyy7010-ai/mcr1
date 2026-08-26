@@ -11,6 +11,7 @@ import { socialService } from '../services/socialService';
 import { supabase } from '../lib/supabase';
 import { churchService } from '../services/churchService';
 import { isDemoChurch, getActiveChurchId } from '../lib/permissions';
+import CopyFromSample from '../components/CopyFromSample';
 import { tValue } from '../lib/valueLabels';
 import { tr } from '../lib/uiText';
 
@@ -878,6 +879,9 @@ export default function Roster() {
                 <span className="material-symbols-outlined text-[20px] group-hover:rotate-45 transition-transform">settings</span>
                 <span className="text-[10px] font-black uppercase tracking-widest">{tr('Role Settings', language)}</span>
               </button>
+
+              {/* 参观示例教会时：把这套岗位设置带回自己的教会 */}
+              <CopyFromSample kind="roster_roles" label={language.startsWith('zh') ? '复制岗位设置' : 'Copy roles'} />
 
               {saveStatus !== 'IDLE' && (
                 <div className={`flex items-center gap-2 px-4 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest ${

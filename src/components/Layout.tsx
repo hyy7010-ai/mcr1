@@ -640,8 +640,8 @@ export default function Layout() {
             <span className="material-symbols-outlined text-[18px] shrink-0">visibility</span>
             <p className="flex-1 text-xs font-bold leading-snug">
               {isZh
-                ? '你正在参观示例教会 — 这里的内容都是示范用的，随便点、随便改，不会影响你自己教会的数据。'
-                : 'You are exploring the sample church — try anything, nothing here touches your own church.'}
+                ? '你正在参观示例教会 — 只读，看看别人是怎么用的。看中哪块结构，点「复制到我的教会」带回去。'
+                : 'Exploring the sample church — read-only. Found something useful? Copy it to your own church.'}
             </p>
             <button
               onClick={endSampleVisit}

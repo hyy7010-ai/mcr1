@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { getActiveChurchId, canManageChurch } from '../lib/permissions';
 import { useMode } from '../contexts/ModeContext';
 import { lifeService, dayKey, LifeRow } from '../services/lifeService';
+import { isSampleChurch } from '../lib/demoChurch';
 
 /* ──────────────────────────────────────────────────────────────────────────
    首页看板 · 每日灵修与属灵指引
@@ -49,7 +50,7 @@ export default function DailyDevotion() {
   const { profile, church, user } = useAuth();
   const churchId = getActiveChurchId(profile, church) || '';
   const { mode } = useMode();
-  const canManage = canManageChurch(profile, user) && mode !== 'Member';
+  const canManage = canManageChurch(profile, user) && mode !== 'Member' && !isSampleChurch(church);
   const me = profile?.id || user?.id || 'me';
   const author = { id: me, name: profile?.full_name || user?.email || '' };
 

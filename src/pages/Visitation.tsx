@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { getActiveChurchId, canDoStaff } from '../lib/permissions';
 import { useMode } from '../contexts/ModeContext';
 import { lifeService, LifeRow } from '../services/lifeService';
+import { isSampleChurch } from '../lib/demoChurch';
 
 /* ──────────────────────────────────────────────────────────────────────────
    探访关怀 · 申请家访 → 同工跟进 → 完成回报
@@ -33,7 +34,8 @@ export default function Visitation() {
   const { profile, church, user } = useAuth();
   const churchId = getActiveChurchId(profile, church) || '';
   const { mode } = useMode();
-  const isStaff = canDoStaff(profile, user) && mode !== 'Member';
+  const readOnly = isSampleChurch(church);
+  const isStaff = canDoStaff(profile, user) && mode !== 'Member' && !readOnly;
   const me = profile?.id || user?.id || 'me';
   const author = { id: me, name: profile?.full_name || user?.email || '' };
 
@@ -74,10 +76,12 @@ export default function Visitation() {
             {isZh ? '主动寻找，爱心寻访 — 不漏掉任何一只小羊。' : 'Go and look for them — not one sheep left behind.'}
           </p>
         </div>
-        <button onClick={() => setShowForm(true)}
-          className="px-6 py-3 rounded-full bg-black text-white text-[11px] font-black uppercase tracking-widest whitespace-nowrap active:scale-95 transition-all">
-          {isZh ? '发起探访申请' : 'Request a visit'}
-        </button>
+        {!readOnly && (
+          <button onClick={() => setShowForm(true)}
+            className="px-6 py-3 rounded-full bg-black text-white text-[11px] font-black uppercase tracking-widest whitespace-nowrap active:scale-95 transition-all">
+            {isZh ? '发起探访申请' : 'Request a visit'}
+          </button>
+        )}
       </header>
 
       {/* 进度概览 */}
