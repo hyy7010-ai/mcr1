@@ -97,10 +97,10 @@ const MEMBERS = [
   { name: '钱伯明 Ben Qian',     initials: 'BQ', status: 'Member',     role: [],                 family: '钱家', occupation: '退休',       skills: ['园艺'],                         phone: '0400 100 018', dob: dob(-1, 8, 71), referral_source: '女儿带来' },
 ];
 
-const GROUPS = [
-  { name: '葡萄树小组',   description: '约翰福音 15:5「我是葡萄树，你们是枝子」。青年与初职，周五晚查经＋宵夜。', color: '#2C2C2C', icon: 'groups' },
-  { name: '以便以谢小组', description: '撒上 7:12「到如今耶和华都帮助我们」。姊妹与家庭，周二上午，可带小孩。',   color: '#8B7E74', icon: 'diversity_3' },
-  { name: '伯特利小组',   description: '创 28:19「这地方是神的殿」。慕道友与新朋友，周六晚在咖啡厅轻松聊信仰。', color: '#6E635B', icon: 'handshake' },
+export const SAMPLE_GROUPS = [
+  { id: 'demo-group-vine',     name: '葡萄树小组',   description: '约翰福音 15:5「我是葡萄树，你们是枝子」。青年与初职，周五晚查经＋宵夜。', color: '#2C2C2C', icon: 'groups' },
+  { id: 'demo-group-ebenezer', name: '以便以谢小组', description: '撒上 7:12「到如今耶和华都帮助我们」。姊妹与家庭，周二上午，可带小孩。',   color: '#8B7E74', icon: 'diversity_3' },
+  { id: 'demo-group-bethel',   name: '伯特利小组',   description: '创 28:19「这地方是神的殿」。慕道友与新朋友，周六晚在咖啡厅轻松聊信仰。', color: '#6E635B', icon: 'handshake' },
 ];
 
 /** 会友 → 所属小组。church_members.family 这一列在 UI 上就叫「所属小组」，
@@ -247,7 +247,7 @@ const SONGS = [
 ];
 
 
-const GROUP_POSTS: Record<string, { type: string; content: string; author: string }[]> = {
+export const SAMPLE_GROUP_POSTS: Record<string, { type: string; content: string; author: string }[]> = {
   '葡萄树小组': [
     { type: 'text', content: '本周五查经到罗马书第八章，请先读 1–17 节。聚会后照例有宵夜 🍜', author: '王大卫 David Wang' },
     { type: 'text', content: '我可以带二十个饺子来，不用另外买了', author: '刘平安 Peace Liu' },
@@ -430,7 +430,6 @@ export async function resetDemoChurch(): Promise<SeedResult[]> {
   const { data: members, error: memErr } = await supabase.from('church_members').insert(memberRows).select('id, name, status');
   out.push({ table: 'church_members', rows: members?.length ?? 0, error: memErr?.message });
 
-  out.push(await wipeAndInsert('church_groups', GROUPS.map(g => ({ ...g, church_id: cid }))));
   out.push(await wipeAndInsert('church_events', EVENTS.map(e => ({ ...e, church_id: cid }))));
 
   out.push(await wipeAndInsert('church_prayers', PRAYERS.map(p => ({
@@ -472,18 +471,6 @@ export async function resetDemoChurch(): Promise<SeedResult[]> {
       present_member_ids: ids.slice(0, ids.length - w),
       created_by: '黄喜乐 Joy Huang',
     }))));
-  }
-
-  // 小组帖子：要等小组建好拿到 id
-  const { data: groups } = await supabase
-    .from('church_groups').select('id, name').eq('church_id', cid);
-  if (groups?.length) {
-    const posts = groups.flatMap((g: any) =>
-      (GROUP_POSTS[g.name] || []).map(p => ({
-        church_id: cid, group_id: g.id, type: p.type, content: p.content,
-        url: null, image_url: null, author_name: p.author, author_id: null,
-      })));
-    out.push(await wipeAndInsert('group_posts', posts));
   }
 
   return out;

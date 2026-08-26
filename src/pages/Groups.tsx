@@ -4,7 +4,15 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useMode } from '../contexts/ModeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { getActiveChurchId } from '../lib/permissions';
-import { isSampleChurch } from '../lib/demoChurch';
+import { isSampleChurch, SAMPLE_GROUPS, SAMPLE_GROUP_POSTS } from '../lib/demoChurch';
+
+/** 数据库慢或连不上时，小组列表照样要出来 —— 名单空着也好过一直转圈。 */
+function withTimeout<T>(p: PromiseLike<T>, ms = 6000): Promise<T> {
+  return Promise.race([
+    Promise.resolve(p),
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
+  ]);
+}
 import { supabase } from '../lib/supabase';
 import { logActivity } from '../services/activityService';
 import { socialService, GroupComment } from '../services/socialService';
@@ -106,28 +114,37 @@ export default function Groups() {
 
     const loadAll = async () => {
       // Load groups
-      const { data: groupsData } = await supabase
-        .from('church_groups')
-        .select('*')
-        .eq('church_id', activeChurchId)
-        .order('created_at', { ascending: true });
+      // 示例教会的小组是固定示范内容，直接用常量 —— 往数据库存一遍再读回来
+      // 只是多了一条会坏的链路（建表、RLS、有没有点过填充按钮）。
+      const sampleMode = isSampleChurch(church);
+      const { data: groupsData } = sampleMode
+        ? { data: SAMPLE_GROUPS.map(g => ({ ...g, church_id: activeChurchId, created_at: '' })) }
+        : await supabase
+            .from('church_groups')
+            .select('*')
+            .eq('church_id', activeChurchId)
+            .order('created_at', { ascending: true });
 
-      // Load group memberships
-      const { data: membershipsData } = await supabase
-        .from('church_group_members')
-        .select('id, profile_id, group_id')
-        .eq('church_id', activeChurchId);
+      // Load group memberships（示例教会不用这张表，归属看 church_members.family）
+      const { data: membershipsData } = sampleMode
+        ? { data: [] as any[] }
+        : await supabase
+            .from('church_group_members')
+            .select('id, profile_id, group_id')
+            .eq('church_id', activeChurchId);
 
       // 示例教会没有真实登录账号，改用会友名册；归属看 church_members.family
       // （UI 上这一列就叫「所属小组」），不去碰 church_group_members ——
       // 它的 profile_id 是指向 profiles 的外键，塞会友 id 会违反约束。
-      const sample = isSampleChurch(church);
-      const { data: profilesData } = sample
-        ? await supabase.from('church_members')
-            .select('id, name, status, family').eq('church_id', activeChurchId)
-        : await supabase.from('profiles')
-            .select('id, full_name, role, avatar_url')
-            .eq('church_id', activeChurchId).neq('role', 'Pending');
+      const sample = sampleMode;
+      const { data: profilesData } = await withTimeout<{ data: any[] | null }>(
+        (sample
+          ? supabase.from('church_members')
+              .select('id, name, status, family').eq('church_id', activeChurchId)
+          : supabase.from('profiles')
+              .select('id, full_name, role, avatar_url')
+              .eq('church_id', activeChurchId).neq('role', 'Pending')) as any,
+      ).catch(() => ({ data: [] as any[] }));
 
       const profiles: any[] = sample
         ? (profilesData || []).map((m: any) => ({ id: m.id, full_name: m.name, role: m.status, avatar_url: '', family: m.family }))
@@ -177,6 +194,17 @@ export default function Groups() {
   useEffect(() => {
     if (!selectedGroup || !activeChurchId) { setPosts([]); return; }
     setPostsLoading(true);
+    if (isSampleChurch(church)) {
+      setPosts((SAMPLE_GROUP_POSTS[selectedGroup.name] || []).map((p, i) => ({
+        id: `demo-post-${selectedGroup.id}-${i}`,
+        church_id: activeChurchId, group_id: selectedGroup.id,
+        type: p.type, content: p.content, url: null, image_url: null,
+        author_name: p.author, author_id: null,
+        created_at: new Date(Date.now() - (i + 1) * 36e5).toISOString(),
+      })) as any);
+      setPostsLoading(false);
+      return;
+    }
     supabase
       .from('group_posts')
       .select('*')
