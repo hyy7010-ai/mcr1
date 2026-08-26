@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { getActiveChurchId } from '../lib/permissions';
 import { supabase } from '../lib/supabase';
 import { lifeService, LifeRow } from '../services/lifeService';
+import { isSampleChurch, SAMPLE_CONTACTS, SAMPLE_DMS } from '../lib/demoChurch';
 
 /* ──────────────────────────────────────────────────────────────────────────
    消息通知与私聊 · 同工联系列表 + 一对一对话
@@ -39,6 +40,28 @@ export default function Messages() {
 
   useEffect(() => {
     if (!churchId) return;
+    // 示例教会没有登录账号，联系人和往来消息都用常量 —— 四个角色分组都占上，
+    // 分组标题才不会是空的。
+    if (isSampleChurch(church)) {
+      setContacts(SAMPLE_CONTACTS);
+      setMsgs(Object.entries(SAMPLE_DMS).flatMap(([cid, list]) =>
+        list.map((m, i) => ({
+          id: `demo-dm-${cid}-${i}`,
+          church_id: churchId,
+          kind: 'dm' as const,
+          created_at: new Date(Date.now() - (list.length - i) * 6e5).toISOString(),
+          author_name: null,
+          author_id: null,
+          data: {
+            thread: threadOf(me, cid),
+            from: m.from === 'me' ? me : cid,
+            from_name: m.from === 'me' ? (author.name || '我') : (SAMPLE_CONTACTS.find(c => c.id === cid)?.name || ''),
+            text: m.text,
+          },
+        })),
+      ).reverse());
+      return;
+    }
     supabase.from('profiles').select('*').eq('church_id', churchId).then(({ data }) => {
       setContacts((data || [])
         .filter((p: any) => p.id !== me && p.role !== 'Pending')
