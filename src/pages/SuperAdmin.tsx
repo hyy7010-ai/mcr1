@@ -11,6 +11,7 @@ import {
 } from "../services/applicationService";
 import { supabase } from "../lib/supabase";
 import { isSuperAdmin } from "../lib/permissions";
+import DemoChurchPanel from "../components/DemoChurchPanel";
 
 export default function SuperAdmin() {
   const { profile, switchChurch, user, church: currentChurch } = useAuth();
@@ -61,7 +62,7 @@ export default function SuperAdmin() {
     return [];
   });
   const [loading, setLoading] = useState(() => !localStorage.getItem('super_admin_cache'));
-  const [activeTab, setActiveTab] = useState<"churches" | "applications" | "users" | "debug">(
+  const [activeTab, setActiveTab] = useState<"churches" | "applications" | "users" | "demo" | "debug">(
     "churches",
   );
   const [debugLog, setDebugLog] = useState<any>(null);
@@ -471,7 +472,7 @@ export default function SuperAdmin() {
             />
           </div>
           <div className="flex gap-2 bg-surface-container-low p-2 rounded-2xl border border-outline-variant/10">
-            {["churches", "applications", "users", "debug"].map((tab) => (
+            {["churches", "applications", "users", "demo", "debug"].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab as any)}
@@ -496,7 +497,9 @@ export default function SuperAdmin() {
         </div>
       </header>
 
-      {loading ? (
+      {activeTab === "demo" ? (
+        <DemoChurchPanel />
+      ) : loading ? (
         <div className="flex flex-col items-center justify-center p-20 gap-6">
            <div className="w-10 h-10 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
            <p className="text-outline font-black uppercase tracking-[0.3em] text-[10px] animate-pulse">Synchronizing Data...</p>
