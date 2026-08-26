@@ -61,9 +61,15 @@ function lazyPage(factory: () => Promise<{ default: React.ComponentType<any> }>)
         await reg?.update();
       } catch { /* 清缓存失败也要继续重载，总比停在白屏强 */ }
 
-      const url = new URL(window.location.href);
-      url.searchParams.set('_r', String(Date.now()));
-      window.location.replace(url.toString());
+      // 直接跳带时间戳的根路径，并把当前路径交给 index.html 还原。
+      // 不要重载深链接 —— GitHub Pages 上 /app/xxx 不是真实文件，会退回
+      // 404.html 再跳一次 '/'，那一跳会把时间戳丢掉，于是又拿到缓存的旧
+      // index.html，chunk 名照旧对不上。
+      try {
+        sessionStorage.setItem('spa-redirect',
+          window.location.pathname + window.location.search + window.location.hash);
+      } catch {}
+      window.location.replace(window.location.origin + '/?_r=' + Date.now());
       return new Promise<never>(() => {}); // 等重载接管，永不 resolve
     })
   );
