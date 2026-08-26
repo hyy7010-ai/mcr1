@@ -726,6 +726,15 @@ export async function copyFromSample(kind: CopyKind, targetChurchId: string): Pr
    分组标题才不会是空的。
    ────────────────────────────────────────────────────────────────────── */
 
+export const SAMPLE_VISITS = [
+  { name: '周新民 Simon Zhou', contact: '0400 100 010', address: 'Hurstville', reason: '刚来教会三次，想多认识弟兄姊妹，但不太好意思开口。', needs: '工作日晚上有空，周末要上班', spiritual: '慕道中，对救恩有兴趣，问过「受洗是什么意思」', status: 'scheduled', by: '李美玲 Mary Li', log: [] as { at: string; by: string; text: string }[] },
+  { name: '张伯母', contact: '0400 100 099', address: 'Kogarah', reason: '髋关节手术住院两周，盼望同工探望。', needs: '需要有人代买日用品，家中无人照料', spiritual: '信心坚定，盼望有人一同祷告', status: 'visited', by: '李美玲 Mary Li', log: [{ at: new Date(Date.now() - 2 * 864e5).toISOString(), by: '李美玲 Mary Li', text: '已到医院探望，一同读诗篇 23 篇并祷告，精神不错。下周出院，已安排姊妹小组轮流送餐一周。' }] },
+  { name: '钱伯明 Ben Qian', contact: '0400 100 018', address: 'Beverly Hills', reason: '太太过世满一年，最近主日常常缺席。', needs: '独居，晚上比较难过', spiritual: '信主多年，但这段时间不太说话', status: 'requested', by: '陈约翰 John Chen', log: [] },
+  { name: '赵小雨 Rain Zhao', contact: '0400 100 017', address: 'Kingsford', reason: '留学生，第一次离家过节，想找人聊聊。', needs: '没有车，需要接送', spiritual: '还没信主，郑安德带来的', status: 'scheduled', by: '郑安德 Andrew Zheng', log: [] },
+  { name: '林伯父夫妇', contact: '0400 100 077', address: 'Carlton', reason: '两位都七十多了，上周主日在教会门口滑了一跤，虽无大碍但家人担心。', needs: '希望有人每周打个电话问候', spiritual: '受洗二十多年，近年听力退化，聚会常听不清', status: 'visited', by: '许恩光 Simon Xu', log: [{ at: new Date(Date.now() - 5 * 864e5).toISOString(), by: '许恩光 Simon Xu', text: '上门看过，膝盖已无碍。已协调主日接送，并向敬拜团反映把字幕字号调大。' }] },
+  { name: '吴姊妹一家', contact: '0400 100 088', address: 'Rockdale', reason: '先生上月失业，两个孩子还在念小学，家里气氛紧张。', needs: '暂时的生活支援；先生想找仓管或司机的工作', spiritual: '姊妹信主，先生尚未；不希望被太多人知道', status: 'requested', by: '李美玲 Mary Li', log: [] },
+];
+
 export const SAMPLE_CONTACTS = [
   { id: 'dm-chen',   name: '陈约翰 John Chen',   role: 'Manager' },
   { id: 'dm-ruth',   name: '陈师母 Ruth Chen',   role: 'Manager' },
