@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useMode } from '../contexts/ModeContext';
 import { getActiveChurchId, isDemoChurch } from '../lib/permissions';
+import { isSampleChurch, sampleAttendance } from '../lib/demoChurch';
 import { memberService, Member } from '../services/memberService';
 import { logActivity } from '../services/activityService';
 
@@ -20,6 +21,12 @@ interface AttendanceRecord {
 }
 
 const lsKey = (churchId: string) => `attendance_${churchId}`;
+
+/** 本地「今天」。toISOString() 走 UTC —— 在 UTC+10，上午十点前会算成昨天。 */
+const todayLocal = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 
 function lsGetRecords(churchId: string): AttendanceRecord[] {
   try { return JSON.parse(localStorage.getItem(lsKey(churchId)) || '[]'); } catch { return []; }
@@ -67,6 +74,17 @@ export default function Attendance() {
   const loadRecords = useCallback(async () => {
     if (!activeChurchId) return;
     setLoading(true);
+
+    // 示例教会用常量：一整年 52 个主日，看得出趋势和波动
+    if (isSampleChurch(church)) {
+      setRecords(sampleAttendance().map((r, i) => ({
+        id: `demo-att-${i}`, church_id: activeChurchId, ...r,
+        created_at: new Date(r.service_date).toISOString(),
+      })));
+      setLoading(false);
+      return;
+    }
+
     try {
       const { data, error } = await withTimeout(
         supabase
@@ -85,7 +103,7 @@ export default function Attendance() {
     } finally {
       setLoading(false);
     }
-  }, [activeChurchId]);
+  }, [activeChurchId, church?.id]);
 
   useEffect(() => {
     loadRecords();
@@ -97,7 +115,7 @@ export default function Attendance() {
   }, [activeChurchId]);
 
   const startNew = () => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayLocal();
     setEditDate(today);
     setEditHeadcount(0);
     setEditNotes('');
@@ -383,9 +401,9 @@ export default function Attendance() {
                     <input
                       type="date"
                       value={editDate}
-                      max={new Date().toISOString().split('T')[0]}
+                      max={todayLocal()}
                       onChange={e => {
-                        const today = new Date().toISOString().split('T')[0];
+                        const today = todayLocal();
                         if (e.target.value > today) {
                           alert(t('futureDateError') || 'Cannot record future attendance');
                           return;
