@@ -34,21 +34,34 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
  * index.html 记着的那个文件名就 404 了，点进任何还没加载过的页面都会炸
  * （TypeError: Failed to fetch dynamically imported module）。
  *
- * 这里第一次失败就整页重载一次 —— 重载会拿到新的 index.html 和新文件名。
- * sessionStorage 里记时间戳做闸门：万一 chunk 是真的不存在，不至于陷入
- * 无限重载，第二次就把错误抛给 ErrorBoundary。
+ * 上一版只做了 location.reload()，实测仍会漏：Service Worker 对 /assets/
+ * 是 cache-first，而 index.html 还可能命中 HTTP / CDN 缓存 —— 重载后照样
+ * 拿到同一份过期清单。所以这里先清掉 SW 缓存，再带时间戳跳转绕开缓存。
+ *
+ * 闸门：每次失败记时间戳，30 秒内不重复自救，避免 chunk 真的不存在时
+ * 陷入无限重载；超出就把错误抛给 ErrorBoundary，让用户看到 Retry。
  */
 function lazyPage(factory: () => Promise<{ default: React.ComponentType<any> }>) {
   return lazy(() =>
-    factory().catch((err) => {
+    factory().catch(async (err) => {
       const KEY = 'chunk_reload_at';
       const last = Number(sessionStorage.getItem(KEY) || 0);
-      if (Date.now() - last > 10000) {
-        sessionStorage.setItem(KEY, String(Date.now()));
-        window.location.reload();
-        return new Promise<never>(() => {}); // 等重载接管，永不 resolve
-      }
-      throw err;
+      if (Date.now() - last < 30000) throw err;
+      sessionStorage.setItem(KEY, String(Date.now()));
+
+      try {
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map((k) => caches.delete(k)));
+        }
+        const reg = await navigator.serviceWorker?.getRegistration();
+        await reg?.update();
+      } catch { /* 清缓存失败也要继续重载，总比停在白屏强 */ }
+
+      const url = new URL(window.location.href);
+      url.searchParams.set('_r', String(Date.now()));
+      window.location.replace(url.toString());
+      return new Promise<never>(() => {}); // 等重载接管，永不 resolve
     })
   );
 }
