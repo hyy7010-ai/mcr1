@@ -55,19 +55,33 @@ function daysFromNow(n: number): string {
   return iso(d);
 }
 
+
+/** 生日：相对当前月份生成，示例永远有「本月寿星」可看。age 用来倒推出生年。 */
+function dob(monthOffset: number, day: number, age: number): string {
+  const now = new Date();
+  const d = new Date(now.getFullYear() - age, now.getMonth() + monthOffset, day);
+  return iso(d);
+}
+
 const MEMBERS = [
-  { name: '陈约翰 John Chen',  initials: 'JC', status: 'Pastor',    role: ['主任牧师'],   family: '陈家',   occupation: '牧师',     skills: ['讲道', '门徒栽培'], phone: '0400 100 001' },
-  { name: '林恩慈 Grace Lin',  initials: 'GL', status: 'Leader',    role: ['敬拜带领'],   family: '林家',   occupation: '音乐教师', skills: ['主领', '钢琴'],     phone: '0400 100 002' },
-  { name: '王大卫 David Wang', initials: 'DW', status: 'Leader',    role: ['青年团契'],   family: '王家',   occupation: '工程师',   skills: ['吉他', '带小组'],   phone: '0400 100 003' },
-  { name: '李美玲 Mary Li',    initials: 'ML', status: 'Leader',    role: ['关怀组'],     family: '李家',   occupation: '护士',     skills: ['探访', '烹饪'],     phone: '0400 100 004' },
-  { name: '张保罗 Paul Zhang', initials: 'PZ', status: 'Member',    role: ['音响'],       family: '张家',   occupation: 'IT 支持',  skills: ['音响', '投影'],     phone: '0400 100 005' },
-  { name: '刘平安 Peace Liu',  initials: 'PL', status: 'Member',    role: ['司琴'],       family: '刘家',   occupation: '会计',     skills: ['钢琴'],             phone: '0400 100 006' },
-  { name: '黄喜乐 Joy Huang',  initials: 'JH', status: 'Member',    role: ['招待'],       family: '黄家',   occupation: '零售',     skills: ['招待', '接待新朋友'], phone: '0400 100 007' },
-  { name: '吴信实 Faith Wu',   initials: 'FW', status: 'Member',    role: ['主日学'],     family: '吴家',   occupation: '幼教',     skills: ['儿童主日学'],       phone: '0400 100 008' },
-  { name: '郑安德 Andrew Zheng', initials: 'AZ', status: 'Member',  role: ['投影'],       family: '郑家',   occupation: '学生',     skills: ['投影', '摄影'],     phone: '0400 100 009' },
-  { name: '周新民 Simon Zhou', initials: 'SZ', status: 'New Friend', role: [],            family: '周家',   occupation: '厨师',     skills: [],                   phone: '0400 100 010' },
-  { name: '孙恩典 Gift Sun',   initials: 'GS', status: 'New Friend', role: [],            family: '孙家',   occupation: '设计师',   skills: ['平面设计'],         phone: '0400 100 011' },
-  { name: '马利亚 Maria Ma',   initials: 'MM', status: 'Member',    role: ['财务'],       family: '马家',   occupation: '银行职员', skills: ['记账'],             phone: '0400 100 012' },
+  { name: '陈约翰 John Chen',    initials: 'JC', status: 'Pastor',     role: ['主任牧师'],       family: '陈家', occupation: '牧师',       skills: ['讲道', '门徒栽培', '婚前辅导'], phone: '0400 100 001', dob: dob(0, 12, 52), referral_source: '创会同工' },
+  { name: '陈师母 Ruth Chen',    initials: 'RC', status: 'Member',     role: ['师母', '关怀'],   family: '陈家', occupation: '中文教师',   skills: ['关怀', '烹饪'],                 phone: '0400 100 013', dob: dob(2, 3, 49),  referral_source: '家庭' },
+  { name: '林恩慈 Grace Lin',    initials: 'GL', status: 'Leader',     role: ['敬拜带领'],       family: '林家', occupation: '音乐教师',   skills: ['主领', '钢琴', '编曲'],         phone: '0400 100 002', dob: dob(0, 24, 34), referral_source: '朋友介绍' },
+  { name: '王大卫 David Wang',   initials: 'DW', status: 'Leader',     role: ['青年团契'],       family: '王家', occupation: '软件工程师', skills: ['吉他', '带小组'],               phone: '0400 100 003', dob: dob(1, 8, 29),  referral_source: '大学团契' },
+  { name: '李美玲 Mary Li',      initials: 'ML', status: 'Leader',     role: ['关怀组'],         family: '李家', occupation: '注册护士',   skills: ['探访', '急救', '烹饪'],         phone: '0400 100 004', dob: dob(-1, 19, 45), referral_source: '同事邀请' },
+  { name: '张保罗 Paul Zhang',   initials: 'PZ', status: 'Member',     role: ['音响'],           family: '张家', occupation: 'IT 支持',    skills: ['音响', '直播', '投影'],         phone: '0400 100 005', dob: dob(0, 5, 38),  referral_source: '妻子带来' },
+  { name: '张丽华 Lily Zhang',   initials: 'LZ', status: 'Member',     role: ['招待'],           family: '张家', occupation: '药剂师',     skills: ['招待'],                         phone: '0400 100 014', dob: dob(3, 11, 36), referral_source: '朋友介绍' },
+  { name: '刘平安 Peace Liu',    initials: 'PL', status: 'Member',     role: ['司琴'],           family: '刘家', occupation: '会计',       skills: ['钢琴', '记账'],                 phone: '0400 100 006', dob: dob(1, 22, 41), referral_source: '福音班' },
+  { name: '黄喜乐 Joy Huang',    initials: 'JH', status: 'Member',     role: ['招待', '总务'],   family: '黄家', occupation: '零售主管',   skills: ['招待', '接待新朋友', '采买'],   phone: '0400 100 007', dob: dob(0, 28, 31), referral_source: '同事邀请' },
+  { name: '吴信实 Faith Wu',     initials: 'FW', status: 'Member',     role: ['主日学'],         family: '吴家', occupation: '幼教老师',   skills: ['儿童主日学', '手工'],           phone: '0400 100 008', dob: dob(2, 17, 27), referral_source: '姊妹小组' },
+  { name: '郑安德 Andrew Zheng', initials: 'AZ', status: 'Member',     role: ['投影', '摄影'],   family: '郑家', occupation: '大学生',     skills: ['投影', '摄影', '剪辑'],         phone: '0400 100 009', dob: dob(-1, 30, 21), referral_source: '青年团契' },
+  { name: '马利亚 Maria Ma',     initials: 'MM', status: 'Member',     role: ['财务'],           family: '马家', occupation: '银行职员',   skills: ['记账', '报税'],                 phone: '0400 100 012', dob: dob(4, 9, 43),  referral_source: '朋友介绍' },
+  { name: '许恩光 Simon Xu',     initials: 'SX', status: 'Member',     role: ['司机'],           family: '许家', occupation: '货运司机',   skills: ['接送', '搬运'],                 phone: '0400 100 015', dob: dob(5, 14, 55), referral_source: '邻居' },
+  { name: '何静文 Jenny He',     initials: 'JH', status: 'Member',     role: ['文书'],           family: '何家', occupation: '行政助理',   skills: ['文书', '排版'],                 phone: '0400 100 016', dob: dob(3, 26, 33), referral_source: '姊妹小组' },
+  { name: '周新民 Simon Zhou',   initials: 'SZ', status: 'New Friend', role: [],                 family: '周家', occupation: '厨师',       skills: [],                               phone: '0400 100 010', dob: dob(1, 6, 37),  referral_source: '黄喜乐邀请' },
+  { name: '孙恩典 Gift Sun',     initials: 'GS', status: 'New Friend', role: [],                 family: '孙家', occupation: '平面设计师', skills: ['平面设计'],                     phone: '0400 100 011', dob: dob(0, 20, 26), referral_source: '福音朋友小组' },
+  { name: '赵小雨 Rain Zhao',    initials: 'RZ', status: 'New Friend', role: [],                 family: '赵家', occupation: '留学生',     skills: [],                               phone: '0400 100 017', dob: dob(2, 2, 20),  referral_source: '郑安德邀请' },
+  { name: '钱伯明 Ben Qian',     initials: 'BQ', status: 'Member',     role: [],                 family: '钱家', occupation: '退休',       skills: ['园艺'],                         phone: '0400 100 018', dob: dob(-1, 8, 71), referral_source: '女儿带来' },
 ];
 
 const GROUPS = [
@@ -77,26 +91,38 @@ const GROUPS = [
 ];
 
 const EVENTS = [
-  { title: '主日崇拜',       event_date: nextSunday(0), event_time: '10:00', category: 'Service',   description: '主日联合崇拜，会后爱筵。' },
-  { title: '圣餐主日',       event_date: nextSunday(1), event_time: '10:00', category: 'Communion', description: '每月首个主日举行圣餐。' },
-  { title: '受洗见证会',     event_date: nextSunday(2), event_time: '10:00', category: 'Service',   description: '三位弟兄姊妹受洗，欢迎家人朋友一同见证。' },
-  { title: '青年团契查经',   event_date: daysFromNow(4), event_time: '19:30', category: 'Meeting',  description: '罗马书第八章。' },
-  { title: '同工月度会议',   event_date: daysFromNow(11), event_time: '20:00', category: 'Meeting', description: '各部门事工回顾与下月计划。' },
+  { title: '主日崇拜',         event_date: nextSunday(0), event_time: '10:00', category: 'Service',   description: '主日联合崇拜，会后爱筵。讲员：陈约翰牧师。' },
+  { title: '祷告会',           event_date: daysFromNow(2), event_time: '19:30', category: 'Meeting',  description: '线上同步，链接见群公告。' },
+  { title: '青年团契查经',     event_date: daysFromNow(4), event_time: '19:30', category: 'Meeting',  description: '罗马书第八章，聚会后有宵夜。' },
+  { title: '敬拜团练习',       event_date: daysFromNow(5), event_time: '15:00', category: 'Meeting',  description: '主日事奉同工必到。' },
+  { title: '圣餐主日',         event_date: nextSunday(1), event_time: '10:00', category: 'Communion', description: '每月首个主日举行圣餐，请弟兄姊妹预备己心。' },
+  { title: '受洗见证会',       event_date: nextSunday(2), event_time: '10:00', category: 'Service',   description: '三位弟兄姊妹受洗，欢迎家人朋友一同见证。' },
+  { title: '同工月度会议',     event_date: daysFromNow(11), event_time: '20:00', category: 'Meeting', description: '各部门事工回顾与下月计划。' },
+  { title: '长者关怀日',       event_date: daysFromNow(13), event_time: '14:00', category: 'Meeting', description: '接送安排请找许恩光弟兄。' },
+  { title: '青年冬令营',       event_date: daysFromNow(25), event_time: '全天',  category: 'Camp',    description: '三天两夜，Blue Mountains。招募厨务、活动、摄影同工。' },
 ];
 
 const TASKS = [
-  { title: '预备主日讲道 PPT',   description: '经文：罗马书 8:28–39', due_date: daysFromNow(3),  priority: 'high',   status: 'pending',     category: '主日预备', created_by_name: '陈约翰 John Chen' },
-  { title: '联系受洗班学员',     description: '确认三位受洗者的见证稿。',  due_date: daysFromNow(6),  priority: 'high',   status: 'in_progress', category: '牧养',     created_by_name: '李美玲 Mary Li' },
-  { title: '采购爱筵食材',       description: '本月爱筵约 60 人。',        due_date: daysFromNow(5),  priority: 'medium', status: 'pending',     category: '总务',     created_by_name: '黄喜乐 Joy Huang' },
-  { title: '整理上月奉献报表',   description: '交财务组复核。',            due_date: daysFromNow(9),  priority: 'medium', status: 'done',        category: '财务',     created_by_name: '马利亚 Maria Ma' },
+  { title: '预备主日讲道 PPT',     description: '经文：罗马书 8:18–30。大纲已给敬拜团，PPT 周五前发给张保罗。', due_date: daysFromNow(3),  priority: 'high',   status: 'pending',     category: '主日预备', created_by_name: '陈约翰 John Chen' },
+  { title: '联系受洗班三位学员',   description: '确认见证稿，提醒他们准备两分钟的分享。',                       due_date: daysFromNow(6),  priority: 'high',   status: 'in_progress', category: '牧养',     created_by_name: '李美玲 Mary Li' },
+  { title: '采购爱筵食材',         description: '本月爱筵约 60 人，姊妹小组负责。预算 $250。',                  due_date: daysFromNow(5),  priority: 'medium', status: 'pending',     category: '总务',     created_by_name: '黄喜乐 Joy Huang' },
+  { title: '整理上月奉献报表',     description: '交财务组复核后归档，年底审计要用。',                           due_date: daysFromNow(9),  priority: 'medium', status: 'done',       category: '财务',     created_by_name: '马利亚 Maria Ma' },
+  { title: '跟进两位新朋友',       description: '周新民、赵小雨连续来了三次，安排一次家访或约咖啡。',           due_date: daysFromNow(8),  priority: 'high',   status: 'pending',     category: '牧养',     created_by_name: '李美玲 Mary Li' },
+  { title: '修主堂第三排的椅子',   description: '有两张螺丝松了，坐上去会响。许恩光说周六来处理。',             due_date: daysFromNow(4),  priority: 'low',    status: 'pending',     category: '总务',     created_by_name: '许恩光 Simon Xu' },
+  { title: '排下季度主日讲道表',   description: '需要邀请两位外来讲员，先问王牧师和郑传道的档期。',             due_date: daysFromNow(14), priority: 'medium', status: 'pending',     category: '主日预备', created_by_name: '陈约翰 John Chen' },
+  { title: '更新教会保险',         description: '公众责任险下月到期，比较三家报价。',                           due_date: daysFromNow(20), priority: 'medium', status: 'in_progress', category: '行政',     created_by_name: '马利亚 Maria Ma' },
 ];
 
 const PRAYERS = [
-  { content: '求主医治我父亲的膝盖手术，也求主赐我们全家平安与信心。', tag: 'health', author_name: '李美玲 Mary Li',   anonymous: false, prayed_count: 23 },
-  { content: '为下周的工作面试祷告，求主开路，也求主让我在职场中作光作盐。', tag: 'work',   author_name: '郑安德 Andrew Zheng', anonymous: false, prayed_count: 11 },
-  { content: '孩子刚上中学，求主保守他交对朋友，也求主给我们做父母的智慧。', tag: 'family', author_name: '',                anonymous: true,  prayed_count: 17 },
-  { content: '求主指引我毕业后的方向，是继续升学还是先工作，求主让我心里有平安。', tag: 'future', author_name: '',            anonymous: true,  prayed_count: 8 },
-  { content: '感谢主！上个月提的搬家代祷已经蒙应允，新住处离教会只要十分钟。', tag: 'other',  author_name: '黄喜乐 Joy Huang', anonymous: false, prayed_count: 31 },
+  { content: '求主医治我父亲的膝盖手术，下周三开刀。也求主赐我们全家平安与信心，不被恐惧抓住。', tag: 'health', author_name: '李美玲 Mary Li',   anonymous: false, prayed_count: 23 },
+  { content: '为下周的工作面试祷告，求主开路。也求主让我在职场中作光作盐，不只是求一份薪水。', tag: 'work',   author_name: '郑安德 Andrew Zheng', anonymous: false, prayed_count: 11 },
+  { content: '孩子刚上中学，求主保守他交对朋友，也求主给我们做父母的智慧，知道什么时候该管、什么时候该放手。', tag: 'family', author_name: '', anonymous: true,  prayed_count: 17 },
+  { content: '求主指引我毕业后的方向，是继续升学还是先工作，求主让我心里有平安，不被同学的比较搅扰。', tag: 'future', author_name: '', anonymous: true,  prayed_count: 8 },
+  { content: '感谢主！上个月提的搬家代祷已经蒙应允，新住处离教会只要十分钟，孩子上学也方便。', tag: 'other',  author_name: '黄喜乐 Joy Huang', anonymous: false, prayed_count: 31 },
+  { content: '先生还没信主，每次我来教会他都不太高兴。求主软化他的心，也求主让我先活出来，而不是只会讲道理。', tag: 'family', author_name: '', anonymous: true, prayed_count: 42 },
+  { content: '公司在裁员，这个月已经走了三个同事。求主保守，也求主让我在不安里学会倚靠而不是焦虑。', tag: 'work', author_name: '张保罗 Paul Zhang', anonymous: false, prayed_count: 19 },
+  { content: '妈妈的检查报告下周出来，求主怜悯。她一个人在国内，我这边什么忙都帮不上，心里很难受。', tag: 'health', author_name: '', anonymous: true, prayed_count: 28 },
+  { content: '为教会的场地祷告。租约明年到期，房东说要涨三成，求主预备合适的地方，也让同工们同心。', tag: 'future', author_name: '陈约翰 John Chen', anonymous: false, prayed_count: 36 },
 ];
 
 /** 一个填好的教会长什么样。缺了这些，样板间顶上会一直挂着「完成教会设置 0/6」。 */
@@ -208,6 +234,34 @@ export function seedLocalSampleData() {
   };
 
   put(`giving_settings_${cid}`, { bsb: '062-000', accNo: '1234 5678' });
+
+  // 我们的教会 · 每周聚会时间表 —— 一个负责人真正会填进去的样子
+  put(`about_schedule_${cid}`, [
+    { name: '主日崇拜',       time: '周日 10:00–11:30', loc: '主堂',      contact: '陈约翰 牧师', note: '会后爱筵，欢迎新朋友留下' },
+    { name: '儿童主日学',     time: '周日 10:15–11:15', loc: '二楼教室',  contact: '吴信实',      note: '3–12 岁分两班' },
+    { name: '姊妹小组',       time: '周二 10:00–11:30', loc: '副堂',      contact: '李美玲',      note: '可带小孩，有人帮忙看顾' },
+    { name: '祷告会',         time: '周三 19:30–20:30', loc: '副堂 201',  contact: '陈约翰 牧师', note: '线上同步，链接见群公告' },
+    { name: '系统神学导读班', time: '周三 19:30–21:00', loc: '副堂 201',  contact: '陈约翰 牧师', note: '共 8 周，需报名' },
+    { name: '青年团契',       time: '周五 19:30–21:30', loc: '青年厅',    contact: '王大卫',      note: '18–30 岁，查经＋宵夜' },
+    { name: '敬拜团练习',     time: '周六 15:00–17:00', loc: '敬拜厅',    contact: '林恩慈',      note: '主日事奉同工必到' },
+    { name: '福音朋友小组',   time: '周六 19:00–20:30', loc: '咖啡厅',    contact: '黄喜乐',      note: '慕道友专属，轻松聊信仰' },
+  ]);
+
+  put(`about_corevalues_${cid}`, {
+    heading: '我们看重的三件事',
+    items: [
+      { title: '扎根真理 / Rooted',  desc: '不追热闹。讲台按卷查经，小组跟着讲道走，让每个人都能自己读懂圣经。' },
+      { title: '彼此相顾 / Together', desc: '移民生活不容易。有人生病、失业、孩子出状况，教会要第一时间知道，并且真的到场。' },
+      { title: '走出去 / Sent',       desc: '福音不是留在会堂里的。邻里、职场、校园，是我们平日的禾场。' },
+    ],
+  });
+
+  // 首页 · 本周讲道
+  put(`sermon_${cid}`, {
+    title: '在患难中的盼望 — 罗马书 8:18–30',
+    description: '苦难不会因为信主就消失，但它不再是终点。这周我们看保罗如何在受苦中说「万事互相效力」，以及圣灵怎样为说不出话的我们代求。',
+    link: '',
+  });
 
   put(`bulletin_v3_${cid}`, {
     churchName: DEMO_CHURCH_NAME,
