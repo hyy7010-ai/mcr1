@@ -880,3 +880,43 @@ export function sampleRoster() {
 
   return { staffList: staffList.map(({ name, initials, role }) => ({ name, initials, role })), staffById, assignments };
 }
+
+
+/**
+ * 每周主日人数。给一整年（52 个主日），带缓慢上升的趋势 + 每周的自然
+ * 波动 + 节期高峰（复活节 / 圣诞前后），这样出勤表和折线才看得出变化。
+ */
+export function sampleAttendance(memberIds: string[] = []) {
+  const out: { service_date: string; headcount: number; notes: string; present_member_ids: string[]; created_by: string }[] = [];
+  const NOTES: Record<number, string> = {
+    0:  '爱筵由姊妹小组预备',
+    3:  '受洗见证会，三位受洗',
+    7:  '暴雨，改为线上聚会同步',
+    12: '联合圣餐主日',
+    20: '长者关怀主日，安排了接送',
+    31: '青年主日，团契负责整场',
+  };
+
+  // 从今天往回数 52 个主日
+  const d = new Date();
+  d.setDate(d.getDate() - ((d.getDay() + 7) % 7)); // 最近的主日（含今天）
+  for (let w = 0; w < 52; w++) {
+    const date = new Date(d);
+    date.setDate(date.getDate() - w * 7);
+    // 一年前约 100 人，稳步长到约 130；叠加 ±8 的周波动
+    const trend = 130 - (w / 52) * 30;
+    const wobble = (seeded(w * 7.7) - 0.5) * 16;
+    const peak = (w === 13 || w === 39) ? 28 : 0; // 复活节 / 圣诞那两周
+    const headcount = Math.max(60, Math.round(trend + wobble + peak));
+    // 到会名单取前若干位，人数对得上就行
+    const present = memberIds.slice(0, Math.min(memberIds.length, Math.round(headcount / 8)));
+    out.push({
+      service_date: iso(date),
+      headcount,
+      notes: NOTES[w] || '',
+      present_member_ids: present,
+      created_by: '黄喜乐 Joy Huang',
+    });
+  }
+  return out;
+}
