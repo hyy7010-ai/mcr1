@@ -6,7 +6,7 @@ import { supabase } from './supabase';
  * 全平台共用一条教会记录，装满示例数据，任何登录用户都能切进去参观。
  * **对所有人只读**（RLS 保证），只有平台管理员能写 —— 共用一个教会又人人可写的话，
  * 第一个删掉示例排班的人就毁了后面所有访客的样板间。用户想留下什么，走
- * copyFromSample()，把结构复制进自己的教会。UUID 与 supabase_demo_church.sql 一致。
+ * copyFromSample()，把结构复制进自己的教会。UUID 与 supabase_setup_all.sql 一致。
  *
  * 注意：别和 `demo-church-id` 混淆 —— 那个是「该用户还没分配教会」的占位符
  * （见 lib/permissions.ts 的 isDemoChurch），含义正好相反。
