@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import { getActiveChurchId } from '../lib/permissions';
+import { isSampleChurch, SAMPLE_TASKS } from '../lib/demoChurch';
 import { tr } from '../lib/uiText';
 
 type Task = {
@@ -34,7 +35,11 @@ export default function Tasks() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
 
+  const readOnly = isSampleChurch(church);
+
   useEffect(() => {
+    // 示例教会直接用常量：示范内容不该取决于用户有没有点过「填充示例内容」
+    if (readOnly) { setTasks(SAMPLE_TASKS()); return; }
     try {
       const saved = localStorage.getItem(churchKey('tasks'));
       if (saved) {
@@ -50,8 +55,9 @@ export default function Tasks() {
   }, [activeChurchId]);
 
   useEffect(() => {
+    if (readOnly) return; // 别把示范任务写进 localStorage
     localStorage.setItem(churchKey('tasks'), JSON.stringify(tasks));
-  }, [tasks, activeChurchId]);
+  }, [tasks, activeChurchId, readOnly]);
 
   const filteredTasks = tasks.filter(task => {
     if (activeTab === 'all') return true;
@@ -237,7 +243,7 @@ export default function Tasks() {
                 </button>
               </div>
             </motion.div>
-          ) : (
+          ) : readOnly ? null : (
             <button
               onClick={() => setShowForm(true)}
               className="p-8 rounded-[40px] border-2 border-dashed border-outline-variant/30 hover:border-primary flex flex-col items-center justify-center gap-4 text-outline hover:text-primary transition-all group min-h-[280px]"
