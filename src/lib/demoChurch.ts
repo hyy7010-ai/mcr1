@@ -236,12 +236,29 @@ const GROUP_POSTS: Record<string, { type: string; content: string; author: strin
   ],
 };
 
-/** 周报与奉献页是纯 localStorage 的，服务端灌不了，只能在进入示例教会时补上。 */
-export function seedLocalSampleData() {
+/**
+ * 任务、周报、奉献、我们的教会这几页是纯 localStorage 的（Tasks 甚至完全
+ * 不碰数据库 —— church_tasks 全项目没有任何代码读它），服务端灌不进去，
+ * 只能在这里补。
+ *
+ * force = true 时覆盖已有值：那是用户点「填充示例内容」的显式动作，
+ * 等同重置。进门时的自动调用则不覆盖，免得抹掉参观者随手改的东西。
+ */
+export function seedLocalSampleData(force = false) {
   const cid = DEMO_CHURCH_ID;
   const put = (key: string, value: any) => {
-    try { if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(value)); } catch {}
+    try { if (force || !localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(value)); } catch {}
   };
+
+  put(`tasks_${cid}`, TASKS.map((t, i) => ({
+    id: String(i + 1),
+    title: t.title,
+    description: t.description,
+    dueDate: t.due_date,
+    priority: t.priority,
+    status: t.status === 'done' ? 'completed' : 'pending',
+    category: t.category,
+  })));
 
   put(`giving_settings_${cid}`, { bsb: '062-000', accNo: '1234 5678' });
 
@@ -348,6 +365,10 @@ export async function resetDemoChurch(): Promise<SeedResult[]> {
   const out: SeedResult[] = [];
   const cid = DEMO_CHURCH_ID;
 
+  // 纯 localStorage 的那几页（任务 / 周报 / 奉献 / 我们的教会 / 本周讲道）
+  // 强制重写 —— 点这个按钮就是显式的重置动作。
+  seedLocalSampleData(true);
+
   // 教会记录本身（SQL 脚本已建好，这里只补名字，跑过就当没事）
   // 整份资料一次写；某个列在这套库里不存在时退回只写必须的两项，
   // 不能因为一个可选列把整次重置搞失败。
@@ -376,7 +397,6 @@ export async function resetDemoChurch(): Promise<SeedResult[]> {
 
   out.push(await wipeAndInsert('church_groups', GROUPS.map(g => ({ ...g, church_id: cid }))));
   out.push(await wipeAndInsert('church_events', EVENTS.map(e => ({ ...e, church_id: cid }))));
-  out.push(await wipeAndInsert('church_tasks',  TASKS.map(t => ({ ...t, church_id: cid }))));
 
   out.push(await wipeAndInsert('church_prayers', PRAYERS.map(p => ({
     church_id: cid, content: p.content, tag: p.tag, anonymous: p.anonymous,
