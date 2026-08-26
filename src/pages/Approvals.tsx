@@ -18,6 +18,13 @@ interface PendingRequest {
   role: string;
 }
 
+/** 会友名册的 status → 成员管理页的角色标签。 */
+function memberStatusToRole(status?: string): string {
+  if (status === 'Pastor') return 'Manager';
+  if (status === 'Leader') return 'Staff';
+  return 'Member';
+}
+
 export default function Approvals() {
   const { language, isZh } = useLanguage();
   const { profile, church, updateChurch } = useAuth();
@@ -96,16 +103,32 @@ export default function Approvals() {
     
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, full_name, email, phone, created_at, role, group_role')
-        .eq('church_id', targetChurchId)
-        .order('created_at', { ascending: false });
+      // 示例教会没有真实登录账号（profiles.id 是 auth.users 的外键，造不出
+      // 假账号），改用会友名册当示范数据 —— 反正样板间是只读的。
+      const source = isSampleChurch(church)
+        ? await supabase.from('church_members')
+            .select('id, name, email, phone, created_at, status, role')
+            .eq('church_id', targetChurchId)
+            .order('created_at', { ascending: false })
+        : await supabase.from('profiles')
+            .select('id, full_name, email, phone, created_at, role, group_role')
+            .eq('church_id', targetChurchId)
+            .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setAllMembers(data || []);
+      if (source.error) throw source.error;
+      const rows: PendingRequest[] = isSampleChurch(church)
+        ? (source.data || []).map((m: any) => ({
+            id: m.id,
+            full_name: m.name,
+            email: m.email || '',
+            phone: m.phone,
+            created_at: m.created_at,
+            role: memberStatusToRole(m.status),
+          }))
+        : ((source.data || []) as any);
+      setAllMembers(rows);
       
-      const hasPending = (data || []).some(m => m.role === 'Pending');
+      const hasPending = rows.some(m => m.role === 'Pending');
       if (hasPending) setActiveTab('Pending');
       else if (activeTab === 'Pending') setActiveTab('All');
       
@@ -290,16 +313,6 @@ export default function Approvals() {
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8 font-sans">
-      {/* 这一页管的是「登录账号」，示例教会里没有真人注册，注定是空的 —— 说清楚，
-          免得让人以为是坏了。 */}
-      {isSampleChurch(church) && (
-        <div className="rounded-[24px] border border-dashed border-outline-variant p-5 text-[13px] leading-relaxed text-on-surface/70">
-          {isZh
-            ? '这一页管理的是「有登录账号的人」——谁能进这个 App、各自什么权限。示例教会里没有真人注册，所以这里是空的。想看会友名册请去「会友」页，那里有 18 位示范成员。'
-            : 'This page manages people with login accounts. The sample church has no real sign-ups, so it is empty by design — see Members for the sample roster.'}
-        </div>
-      )}
-
       <header className="space-y-8">
         <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-8">
           <div className="flex-1">
