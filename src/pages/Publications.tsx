@@ -556,7 +556,7 @@ export default function Publications() {
         title: p.title,
         description: p.description,
         category: p.category as any,
-        file_url: '',
+        file_url: p.file_url,
         file_name: p.file_name,
         file_size: p.file_size,
         created_by: '陈约翰 John Chen',

@@ -241,17 +241,158 @@ const ACTIVITY = [
   { action: '开启新点收',       target: `${nextSunday(-1)} 主日奉献`, type: 'System', user_name: '马利亚 Maria Ma', user_role: 'Staff', note: null },
 ];
 
+
+/**
+ * 把示范刊物的正文做成 data: 文档。Publications 的预览是
+ * `<iframe src={file_url}>`，所以塞一份自带样式的 HTML 就能直接读，
+ * 不用引 PDF 库，也不用真的托管文件。
+ */
+function docUrl(title: string, subtitle: string, body: string[]): string {
+  const html = `<!doctype html><meta charset="utf-8"><style>
+    body{margin:0;padding:48px 56px;font:16px/1.85 -apple-system,"PingFang SC","Noto Sans CJK SC",sans-serif;
+         color:#2C2C2C;background:#F9F7F5;max-width:46em}
+    h1{font:700 30px/1.25 Georgia,"Songti SC",serif;margin:0 0 6px}
+    .sub{color:#8B7E74;font-size:13px;letter-spacing:.08em;text-transform:uppercase;margin:0 0 32px}
+    h2{font:700 19px/1.4 Georgia,"Songti SC",serif;margin:34px 0 10px}
+    blockquote{margin:22px 0;padding:14px 20px;border-left:3px solid #D1CAC3;
+               color:#5a5148;font-style:italic;background:#F4F1EE}
+    p{margin:0 0 16px}
+    hr{border:0;border-top:1px solid #E5E0DA;margin:36px 0}
+    .foot{color:#8B7E74;font-size:12px}
+  </style><h1>${title}</h1><p class="sub">${subtitle}</p>${body.join('')}
+  <hr><p class="foot">示例教会 Grace Demo Church · 本文件为示范内容，可自由替换。</p>`;
+  return 'data:text/html;charset=utf-8,' + encodeURIComponent(html);
+}
+
 /** 免费刊物。category 必须是 Publications 页认的五个值之一。 */
 export const SAMPLE_PUBLICATIONS = [
-  { title: '恩典季刊 · 春季号',       description: '本季主题「在患难中的盼望」。含牧者的话、三篇见证、各部门事工回顾，以及儿童版折页。', category: 'Newsletter',  file_name: 'grace-quarterly-spring.pdf', file_size: 4.2 },
-  { title: '新朋友手册',             description: '教会简介、聚会时间、各团契介绍、常见问题。第一次来的朋友建议先看这本，十分钟读完。', category: 'Other',       file_name: 'newcomer-guide.pdf',         file_size: 1.8 },
-  { title: '受洗预备课程讲义',       description: '六课讲义，配合新信徒门徒成长班使用。每课附经文、讨论问题与一周作业。',                 category: 'Bible Study', file_name: 'baptism-course.pdf',         file_size: 2.6 },
-  { title: '罗马书查经手册',         description: '全书十六章，按段落分 24 课。小组长版另附带组提示与常见问题解答。',                     category: 'Bible Study', file_name: 'romans-study.pdf',           file_size: 5.4 },
-  { title: '每日灵修 · 诗篇三十天',   description: '一天一篇，含经文、默想问题与祷告范文。适合刚开始建立灵修习惯的弟兄姊妹。',             category: 'Devotional',  file_name: 'psalms-30-days.pdf',         file_size: 3.1 },
-  { title: '讲道集 · 登山宝训系列',   description: '陈约翰牧师马太福音 5–7 章共十二讲的讲章整理，含每讲的经文大纲。',                     category: 'Sermon',      file_name: 'sermon-on-the-mount.pdf',    file_size: 6.8 },
-  { title: '亲子灵修 · 睡前十分钟',   description: '给学龄前到小学的家庭。每晚一个圣经小故事加一个问题，爸妈可以直接照着念。',             category: 'Devotional',  file_name: 'family-devotion.pdf',        file_size: 2.9 },
-  { title: '年度事工报告',           description: '各部门全年事工回顾、出席与奉献摘要、明年方向。会员大会资料。',                         category: 'Other',       file_name: 'annual-report.pdf',          file_size: 5.1 },
-];
+  {
+    title: '恩典季刊 · 春季号', category: 'Newsletter',
+    file_name: 'grace-quarterly-spring.pdf', file_size: 4.2,
+    description: '本季主题「在患难中的盼望」。含牧者的话、三篇见证、各部门事工回顾，以及儿童版折页。',
+    body: [
+      '<h2>牧者的话</h2>',
+      '<p>这个季度我们一同读罗马书第八章。保罗写这封信的时候，罗马的信徒正面对逼迫，他没有说苦难会消失，他说的是「万事都互相效力，叫爱神的人得益处」。</p>',
+      '<blockquote>我想现在的苦楚，若比起将来要显于我们的荣耀，就不足介意了。（罗 8:18）</blockquote>',
+      '<p>过去三个月，教会里有人失业，有人家人重病，也有人刚刚受洗。这些事同时发生，并不矛盾。盼望不是「事情会变好」，而是「神与我们同在」。</p>',
+      '<h2>本季见证 · 三则</h2>',
+      '<p><b>张弟兄</b>：公司裁员那两个月，我每天早上照常读经，读不进去也坐在那里。后来找到工作，回头看，那两个月学到的比工作本身多。</p>',
+      '<p><b>李姊妹</b>：母亲住院期间，姊妹小组轮流送了两周的饭。我没开口求过，她们自己排的班。</p>',
+      '<p><b>周弟兄</b>：我来了三次才敢跟人说话。第四次有人记得我的名字，我就留下来了。</p>',
+      '<h2>各部门回顾</h2>',
+      '<p>敬拜团新增两位同工；儿童主日学分成两班；关怀组完成 14 次探访；福音朋友小组平均每周 9 人，其中 4 位是新朋友。</p>',
+    ],
+  },
+  {
+    title: '新朋友手册', category: 'Other',
+    file_name: 'newcomer-guide.pdf', file_size: 1.8,
+    description: '教会简介、聚会时间、各团契介绍、常见问题。第一次来的朋友建议先看这本，十分钟读完。',
+    body: [
+      '<h2>你不需要准备什么</h2>',
+      '<p>不用穿正式的衣服，不用带圣经，不用会唱诗歌。坐下来听就好。中途想出去透气也没关系。</p>',
+      '<h2>主日流程大概是这样</h2>',
+      '<p>10:00 开始，先唱三首诗歌（约 20 分钟），然后是报告和奉献，接着讲道 35 分钟左右，最后一起祷告。11:30 前结束，之后有爱筵，可以留下来吃饭。</p>',
+      '<h2>常见问题</h2>',
+      '<p><b>要奉献吗？</b>不用。奉献袋传过来直接递给下一位就好，没有人会看。</p>',
+      '<p><b>我不是基督徒可以来吗？</b>可以。我们有一个「伯特利小组」就是给还在了解的朋友的，周六晚上在咖啡厅，聊天为主。</p>',
+      '<p><b>孩子怎么办？</b>10:15 有儿童主日学，3 到 12 岁分两班，在二楼教室。</p>',
+      '<h2>找谁问</h2>',
+      '<p>门口穿深色马甲的是招待同工，问什么都可以。或者直接找黄喜乐姊妹。</p>',
+    ],
+  },
+  {
+    title: '受洗预备课程讲义', category: 'Bible Study',
+    file_name: 'baptism-course.pdf', file_size: 2.6,
+    description: '六课讲义，配合新信徒门徒成长班使用。每课附经文、讨论问题与一周作业。',
+    body: [
+      '<h2>第一课　我为什么需要救恩</h2>',
+      '<p>经文：罗马书 3:23、6:23。</p>',
+      '<p>讨论：你第一次意识到「自己做不到」是什么时候？那种感觉和圣经说的「罪」有什么关系？</p>',
+      '<p>作业：写下三件你希望被改变、但靠自己改不了的事。不用交，下次带来。</p>',
+      '<h2>第二课　受洗是什么意思</h2>',
+      '<p>经文：罗马书 6:3–4。受洗不是仪式的完成，是身份的宣告——旧的那个我埋葬了，新的我站起来。</p>',
+      '<p>讨论：如果受洗之后生活没有立刻变好，你会怎么想？</p>',
+      '<h2>第三至六课</h2>',
+      '<p>读经方法、祷告生活、教会生活、传福音。每课约 45 分钟，鼓励带一位朋友同来。</p>',
+    ],
+  },
+  {
+    title: '罗马书查经手册', category: 'Bible Study',
+    file_name: 'romans-study.pdf', file_size: 5.4,
+    description: '全书十六章，按段落分 24 课。小组长版另附带组提示与常见问题解答。',
+    body: [
+      '<h2>使用方法</h2>',
+      '<p>每课约 60 分钟：读经 10 分钟，讨论 35 分钟，祷告 15 分钟。不要赶进度，一次讨论透一个问题好过走完三个。</p>',
+      '<h2>第 12 课　罗马书 8:18–30</h2>',
+      '<p><b>破冰</b>：最近一件让你觉得「等不下去」的事。</p>',
+      '<p><b>观察</b>：18–25 节出现了几次「叹息」？分别是谁在叹息？</p>',
+      '<p><b>解释</b>：26 节说圣灵「用说不出来的叹息替我们祷告」。这对「我不会祷告」的人意味着什么？</p>',
+      '<p><b>应用</b>：28 节常被拿来安慰人，但它的对象是谁？（注意「爱神的人」这个限定）</p>',
+      '<h2>给小组长</h2>',
+      '<p>这一课容易滑向廉价安慰。如果组里有人正在苦难中，先让他说完，不要急着引用 28 节。有时候陪着叹息就是最像圣灵的事。</p>',
+    ],
+  },
+  {
+    title: '每日灵修 · 诗篇三十天', category: 'Devotional',
+    file_name: 'psalms-30-days.pdf', file_size: 3.1,
+    description: '一天一篇，含经文、默想问题与祷告范文。适合刚开始建立灵修习惯的弟兄姊妹。',
+    body: [
+      '<h2>第一天　诗篇 1 篇</h2>',
+      '<blockquote>他要像一棵树栽在溪水旁，按时候结果子，叶子也不枯干。（诗 1:3）</blockquote>',
+      '<p><b>默想</b>：树不能决定自己长在哪里，但人可以决定自己扎根在哪里。你现在的生活，根扎在什么上面？</p>',
+      '<p><b>祷告</b>：主啊，我常把根扎在别人的评价里，风一吹就摇。求你把我栽在你的话语旁边。阿们。</p>',
+      '<h2>第七天　诗篇 23 篇</h2>',
+      '<blockquote>我虽然行过死荫的幽谷，也不怕遭害，因为你与我同在。（诗 23:4）</blockquote>',
+      '<p><b>默想</b>：注意大卫没有说「你带我绕过幽谷」，是「行过」。神应许的是同在，不是免除。</p>',
+      '<h2>怎么用这本册子</h2>',
+      '<p>建议固定时间，五分钟就够。漏了一天不要补两天，直接接着今天读——习惯比进度重要。</p>',
+    ],
+  },
+  {
+    title: '讲道集 · 登山宝训系列', category: 'Sermon',
+    file_name: 'sermon-on-the-mount.pdf', file_size: 6.8,
+    description: '陈约翰牧师马太福音 5–7 章共十二讲的讲章整理，含每讲的经文大纲。',
+    body: [
+      '<h2>第一讲　虚心的人有福了（太 5:1–12）</h2>',
+      '<p>大纲：一、「有福」不是心情好；二、八福描述的是同一种人的八个侧面；三、这不是入场券，是身份证。</p>',
+      '<p>「虚心」原文是「灵里贫穷」——知道自己一无所有的人。这不是谦虚的美德，是诚实的自觉。</p>',
+      '<h2>第五讲　不要论断人（太 7:1–5）</h2>',
+      '<p>大纲：一、论断与分辨的差别；二、梁木为什么看不见；三、「先去掉自己眼中的梁木」不是不管别人，是先能看清。</p>',
+      '<h2>第十二讲　把房子盖在磐石上（太 7:24–27）</h2>',
+      '<p>两座房子外表一样，差别在地基，而地基是看不见的。雨没来的时候，谁也分不出来。</p>',
+    ],
+  },
+  {
+    title: '亲子灵修 · 睡前十分钟', category: 'Devotional',
+    file_name: 'family-devotion.pdf', file_size: 2.9,
+    description: '给学龄前到小学的家庭。每晚一个圣经小故事加一个问题，爸妈可以直接照着念。',
+    body: [
+      '<h2>怎么用</h2>',
+      '<p>睡前关灯之前，念一段（约两分钟），问一个问题，一起祷告一句。不用讲道理，不用要求孩子答对。</p>',
+      '<h2>第三晚　挪亚造方舟</h2>',
+      '<p><b>念给孩子听</b>：神叫挪亚造一条很大很大的船。邻居都笑他，因为那时候一滴雨都没下。挪亚还是一直造，造了很久很久。</p>',
+      '<p><b>问一句</b>：如果别人笑你做的事，你还会做下去吗？</p>',
+      '<p><b>一起祷告</b>：神啊，谢谢你看顾挪亚一家。也求你看顾我们家。阿们。</p>',
+      '<h2>第十晚　大卫和歌利亚</h2>',
+      '<p><b>问一句</b>：大卫那么小，为什么不害怕？（提示：他想的不是自己有多小，是神有多大）</p>',
+    ],
+  },
+  {
+    title: '年度事工报告', category: 'Other',
+    file_name: 'annual-report.pdf', file_size: 5.1,
+    description: '各部门全年事工回顾、出席与奉献摘要、明年方向。会员大会资料。',
+    body: [
+      '<h2>一年概况</h2>',
+      '<p>主日平均出席 128 人（去年 114）。全年受洗 11 位，新加入 23 人。小组从 2 个增加到 3 个，参与率约六成。</p>',
+      '<h2>财务摘要</h2>',
+      '<p>全年奉献收入 $186,400，支出 $171,900，结余 $14,500 转入场地基金（累计 $63,200）。明细见会员大会附件。</p>',
+      '<h2>明年三个方向</h2>',
+      '<p>一、场地。现有租约明年到期，房东提出加租三成，同工会正在寻找替代方案。</p>',
+      '<p>二、第二代。青少年逐渐长大，需要中英双语的青少契，目前缺一位固定负责的同工。</p>',
+      '<p>三、关怀。今年探访 14 次，但仍有长者长期缺席未被跟进。计划把关怀组扩充到 6 人。</p>',
+    ],
+  },
+].map(p => ({ ...p, file_url: docUrl(p.title, p.category, p.body) }));
 
 // 一律用公有领域的古典圣诗，只放开头一两行作示意，避免版权问题
 const SONGS = [
@@ -453,7 +594,9 @@ export async function resetDemoChurch(): Promise<SeedResult[]> {
   out.push(await wipeAndInsert('church_finance', FINANCE.map(f => ({ ...f, church_id: cid }))));
   out.push(await wipeAndInsert('activity_logs', ACTIVITY.map(a => ({ ...a, church_id: cid, user_id: null }))));
   out.push(await wipeAndInsert('church_publications', SAMPLE_PUBLICATIONS.map(p => ({
-    ...p, file_size: `${p.file_size}MB`, church_id: cid, file_url: '', created_by: '陈约翰 John Chen',
+    title: p.title, description: p.description, category: p.category,
+    file_name: p.file_name, file_size: `${p.file_size}MB`, file_url: p.file_url,
+    church_id: cid, created_by: '陈约翰 John Chen',
   }))));
   out.push(await wipeAndInsert('songs', SONGS.map(x => ({ ...x, church_id: cid }))));
 
