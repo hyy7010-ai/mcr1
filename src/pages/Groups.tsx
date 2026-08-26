@@ -61,9 +61,14 @@ export default function Groups() {
   const { mode } = useMode();
   const { profile, church } = useAuth();
   const activeChurchId = getActiveChurchId(profile, church);
-  const isManager = mode === 'Manager' && !isSampleChurch(church);
+  // isManager 决定的是**视野**（看全部小组 vs 只看自己那组），不是能不能改。
+  // 之前把「不在示例教会」并进来，结果参观样板间的管理员被当成普通会友，
+  // 只能看到自己加入的组 —— 一个都没有，页面就空了。
+  const isManager = mode === 'Manager';
+  // 示例教会只读：写入控件单独用这个开关。
+  const canManageGroups = isManager && !isSampleChurch(church);
   // Managers can edit any group; a group's leader can edit their own group (intro/avatar/details).
-  const canEditGroup = (g?: Group | null) => isManager || (!!g && !!profile?.id && g.leader_id === profile.id);
+  const canEditGroup = (g?: Group | null) => canManageGroups || (!!g && !!profile?.id && g.leader_id === profile.id && !isSampleChurch(church));
 
   const [groups, setGroups] = useState<Group[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
@@ -452,9 +457,9 @@ export default function Groups() {
                 </p>
               </div>
 
-              {(isManager || canEditGroup(g)) && (
+              {(canManageGroups || canEditGroup(g)) && (
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  {isManager && (
+                  {canManageGroups && (
                     <button onClick={e => { e.stopPropagation(); setAssigningGroupId(g.id); setShowAssignModal(true); }}
                       title={tr('Assign members', language)}
                       className="w-7 h-7 rounded-lg bg-white/20 hover:bg-white/40 flex items-center justify-center transition-colors">
@@ -466,7 +471,7 @@ export default function Groups() {
                     className="w-7 h-7 rounded-lg bg-white/20 hover:bg-white/40 flex items-center justify-center transition-colors">
                     <span className="material-symbols-outlined text-[13px]">edit</span>
                   </button>
-                  {isManager && (
+                  {canManageGroups && (
                     <button onClick={e => { e.stopPropagation(); handleDeleteGroup(g.id); }}
                       className="w-7 h-7 rounded-lg bg-error/10 hover:bg-error text-error hover:text-white flex items-center justify-center transition-all">
                       <span className="material-symbols-outlined text-[13px]">delete</span>
@@ -478,7 +483,7 @@ export default function Groups() {
           ))}
         </div>
 
-        {isManager && (
+        {canManageGroups && (
           <div className="p-4 border-t border-outline-variant/10">
             <button onClick={() => { setIsCreatingGroup(true); setEditingGroup(null); setGroupDraft(emptyGroupDraft()); }}
               className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border-2 border-dashed border-primary/30 text-primary hover:bg-primary hover:text-white hover:border-primary transition-all font-black text-[11px] uppercase tracking-widest">
@@ -528,7 +533,7 @@ export default function Groups() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                {isManager && (
+                {canManageGroups && (
                   <select
                     value={selectedGroup.leader_id || ''}
                     onChange={(e) => setGroupLeader(selectedGroup.id, e.target.value || null)}
@@ -541,7 +546,7 @@ export default function Groups() {
                     ))}
                   </select>
                 )}
-                {isManager && (
+                {canManageGroups && (
                   <button onClick={() => { setAssigningGroupId(selectedGroup.id); setShowAssignModal(true); }}
                     className="flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-outline-variant/30 text-outline font-black text-[11px] uppercase tracking-widest hover:bg-surface-container transition-all">
                     <span className="material-symbols-outlined text-sm">person_add</span>
@@ -615,7 +620,7 @@ export default function Groups() {
                       {m.avatar_url ? <img src={m.avatar_url} alt="" className="w-full h-full object-cover" /> : m.full_name.charAt(0)}
                     </div>
                     <p className="text-[8px] text-outline font-bold truncate max-w-[40px]">{m.full_name.split(' ')[0]}</p>
-                    {isManager && (
+                    {canManageGroups && (
                       <button
                         onClick={() => assignMemberToGroup(m.profile_id, null)}
                         title={tr('Remove from group', language)}
@@ -724,7 +729,7 @@ export default function Groups() {
                       <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full ${post.type === 'link' ? 'bg-blue-50 text-blue-600' : post.type === 'photo' ? 'bg-purple-50 text-purple-600' : 'bg-surface-container text-outline'}`}>
                         {post.type === 'link' ? '🔗 ' : post.type === 'photo' ? '📷 ' : '💬 '}{post.type.toUpperCase()}
                       </span>
-                      {isManager && (
+                      {canManageGroups && (
                         <button onClick={() => handleDeletePost(post.id)} className="w-8 h-8 rounded-xl hover:bg-error/10 text-outline hover:text-error flex items-center justify-center transition-all opacity-0 group-hover:opacity-100">
                           <span className="material-symbols-outlined text-sm">delete</span>
                         </button>
@@ -799,7 +804,7 @@ export default function Groups() {
 
       {/* ── Assign Members Modal ── */}
       <AnimatePresence>
-        {showAssignModal && assigningGroupId && isManager && (
+        {showAssignModal && assigningGroupId && canManageGroups && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setShowAssignModal(false)}
@@ -862,7 +867,7 @@ export default function Groups() {
 
       {/* ── Create / Edit Group Modal ── */}
       <AnimatePresence>
-        {(isCreatingGroup || editingGroup) && isManager && (
+        {(isCreatingGroup || editingGroup) && canManageGroups && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => { setIsCreatingGroup(false); setEditingGroup(null); }}
