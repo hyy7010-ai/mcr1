@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { getActiveChurchId, canDoStaff } from '../lib/permissions';
 import { useMode } from '../contexts/ModeContext';
 import { lifeService, LifeRow } from '../services/lifeService';
-import { isSampleChurch } from '../lib/demoChurch';
+import { isSampleChurch, SAMPLE_VISITS } from '../lib/demoChurch';
 
 /* ──────────────────────────────────────────────────────────────────────────
    探访关怀 · 申请家访 → 同工跟进 → 完成回报
@@ -35,7 +35,11 @@ export default function Visitation() {
   const churchId = getActiveChurchId(profile, church) || '';
   const { mode } = useMode();
   const readOnly = isSampleChurch(church);
-  const isStaff = canDoStaff(profile, user) && mode !== 'Member' && !readOnly;
+  // isStaff 决定的是**视野**（看全部探访 + 同工才该看的需要/属灵状况），
+  // 不是能不能改。之前把 readOnly 并进来，参观样板间的同工被降级成会友，
+  // 只看得到自己发起的 —— 一条都没有，页面就空了。写入另用 canEdit。
+  const isStaff = canDoStaff(profile, user) && mode !== 'Member';
+  const canEdit = isStaff && !readOnly;
   const me = profile?.id || user?.id || 'me';
   const author = { id: me, name: profile?.full_name || user?.email || '' };
 
@@ -45,7 +49,21 @@ export default function Visitation() {
   const [noteFor, setNoteFor] = useState<string | null>(null);
   const [note, setNote] = useState('');
 
-  useEffect(() => { if (churchId) lifeService.list<Visit>(churchId, 'visit').then(setVisits); }, [churchId]);
+  useEffect(() => {
+    if (!churchId) return;
+    // 示例教会用常量，不依赖数据库和「填充示例内容」
+    if (readOnly) {
+      setVisits(SAMPLE_VISITS.map((v, i) => ({
+        id: `demo-visit-${i}`, church_id: churchId, kind: 'visit' as const,
+        author_id: me, author_name: v.by,
+        created_at: new Date(Date.now() - (i + 1) * 1728e5).toISOString(),
+        data: { name: v.name, contact: v.contact, address: v.address, reason: v.reason,
+                needs: v.needs, spiritual: v.spiritual, status: v.status as Status, log: v.log },
+      })));
+      return;
+    }
+    lifeService.list<Visit>(churchId, 'visit').then(setVisits);
+  }, [churchId, readOnly]);
 
   // 会员只看自己发起的；同工看全部。
   const mine = isStaff ? visits : visits.filter(v => v.author_id === me);
@@ -152,7 +170,7 @@ export default function Visitation() {
               </ul>
             )}
 
-            {isStaff && (
+            {canEdit && (
               <div className="flex flex-wrap items-center gap-2 pt-1">
                 {STAGES.map(s => (
                   <button key={s.key} onClick={() => update(v, { status: s.key })}
