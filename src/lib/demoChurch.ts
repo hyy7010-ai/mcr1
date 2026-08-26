@@ -718,3 +718,57 @@ export async function copyFromSample(kind: CopyKind, targetChurchId: string): Pr
     return { copied: 0, skipped: 0, total: 0, error: e?.message || String(e) };
   }
 }
+
+
+/* ── 消息 · 联系人与对话 ─────────────────────────────────────────────────
+   Messages 页的联系人来自 profiles（登录账号），示例教会里没有。这里给一份
+   常量名册，role 用 Messages 的 ROLE_GROUPS 认的四个值，四组都占上，
+   分组标题才不会是空的。
+   ────────────────────────────────────────────────────────────────────── */
+
+export const SAMPLE_CONTACTS = [
+  { id: 'dm-chen',   name: '陈约翰 John Chen',   role: 'Manager' },
+  { id: 'dm-ruth',   name: '陈师母 Ruth Chen',   role: 'Manager' },
+  { id: 'dm-grace',  name: '林恩慈 Grace Lin',   role: 'Leader'  },
+  { id: 'dm-david',  name: '王大卫 David Wang',  role: 'Leader'  },
+  { id: 'dm-mary',   name: '李美玲 Mary Li',     role: 'Leader'  },
+  { id: 'dm-joy',    name: '黄喜乐 Joy Huang',   role: 'Staff'   },
+  { id: 'dm-faith',  name: '吴信实 Faith Wu',    role: 'Staff'   },
+  { id: 'dm-lily',   name: '张丽华 Lily Zhang',  role: 'Staff'   },
+  { id: 'dm-paul',   name: '张保罗 Paul Zhang',  role: 'Member'  },
+  { id: 'dm-peace',  name: '刘平安 Peace Liu',   role: 'Member'  },
+  { id: 'dm-andrew', name: '郑安德 Andrew Zheng', role: 'Member' },
+  { id: 'dm-maria',  name: '马利亚 Maria Ma',    role: 'Member'  },
+];
+
+/** 联系人 id → 该会话的往来消息。`me` 表示当前参观者发的。 */
+export const SAMPLE_DMS: Record<string, { from: 'me' | 'them'; text: string }[]> = {
+  'dm-chen': [
+    { from: 'them', text: '姊妹平安。这周主日讲罗马书第八章，我想请你在证道后做个三分钟的回应分享，方便吗？' },
+    { from: 'me',   text: '牧师平安，可以的。需要我先把稿子给您看一下吗？' },
+    { from: 'them', text: '不用那么正式，讲你自己的经历就好。真实比工整重要。' },
+    { from: 'them', text: '另外受洗班那三位，麻烦你这周也帮忙跟进一下见证稿。' },
+  ],
+  'dm-mary': [
+    { from: 'them', text: '关于周新民弟兄，他连着来了三次但都是自己坐后排，我想约他吃个饭。' },
+    { from: 'me',   text: '好，需要我一起去吗？他好像跟你比较熟。' },
+    { from: 'them', text: '第一次我先单独去，太多人他会紧张。之后再一起。' },
+    { from: 'them', text: '还有张伯母下周出院，姊妹小组排了一周的送餐班表，我等下发给你。' },
+  ],
+  'dm-david': [
+    { from: 'me',   text: '冬令营的同工报名怎么样了？' },
+    { from: 'them', text: '厨务两位满了，活动还差一位，摄影郑安德接了。' },
+    { from: 'them', text: '场地押金要下周付，我先垫上还是走教会账？' },
+    { from: 'me',   text: '走教会账，我跟马利亚说一声。' },
+  ],
+  'dm-joy': [
+    { from: 'them', text: '这周爱筵大概六十人，预算 $250 够吗？' },
+    { from: 'me',   text: '够的。收据记得留给财务组。' },
+    { from: 'them', text: '收到 👌 另外二楼走廊捡到一把黑伞，已经登记在失物招领了。' },
+  ],
+  'dm-grace': [
+    { from: 'them', text: '主日的诗歌我改了一首，把第三首换成《这是天父世界》，跟讲道题目更配。' },
+    { from: 'me',   text: '好，PPT 我让张保罗那边同步改。' },
+    { from: 'them', text: '谢谢！周六练习 15:00 开始，麻烦提醒一下新来的两位。' },
+  ],
+};
