@@ -325,7 +325,15 @@ async function wipeAndInsert(table: string, rows: any[]): Promise<SeedResult> {
     if (delErr) return { table, rows: 0, error: delErr.message };
     if (!rows.length) return { table, rows: 0 };
     const { data, error } = await supabase.from(table).insert(rows).select('id');
-    if (error) return { table, rows: 0, error: error.message };
+    if (error) {
+      // 42501 = 违反行级安全策略。这个项目里最常见的成因是某张表 RLS 开着
+      // 但一条策略都没有（fix_database.sql 用了 Postgres 不支持的
+      // CREATE POLICY IF NOT EXISTS，脚本在那一行就中断了）。
+      const hint = error.code === '42501'
+        ? '（RLS 拒绝 — 跑一次 supabase_repair_demo.sql）'
+        : '';
+      return { table, rows: 0, error: `${error.message}${hint}` };
+    }
     return { table, rows: data?.length ?? 0 };
   } catch (e: any) {
     return { table, rows: 0, error: e?.message || String(e) };
