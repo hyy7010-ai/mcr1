@@ -7,7 +7,9 @@
       // SPA fallback for GitHub Pages: remember the deep-link path, then load the app
       // at "/". index.html restores this path so a hard refresh stays on the same page.
       sessionStorage.setItem('spa-redirect', location.pathname + location.search + location.hash);
-      location.replace(location.origin + '/');
+      // 带上时间戳：跳到 '/' 时若命中浏览器 HTTP 缓存，会拿到旧 index.html，
+      // 里面记的还是上一次构建的 chunk 名，于是刚修好的页面又 404。
+      location.replace(location.origin + '/?_r=' + Date.now());
     </script>
   </head>
   <body></body>

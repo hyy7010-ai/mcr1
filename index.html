@@ -40,7 +40,12 @@
       var redirect = sessionStorage.getItem('spa-redirect');
       if (redirect) {
         sessionStorage.removeItem('spa-redirect');
+        // 去掉自救用的 _r 时间戳，别把它留在用户地址栏里
+        redirect = redirect.replace(/([?&])_r=\d+&?/, '$1').replace(/[?&]$/, '');
         window.history.replaceState(null, null, redirect);
+      } else if (/[?&]_r=\d+/.test(location.search)) {
+        window.history.replaceState(null, null,
+          location.pathname + location.search.replace(/([?&])_r=\d+&?/, '$1').replace(/[?&]$/, '') + location.hash);
       }
     })();
   </script>
