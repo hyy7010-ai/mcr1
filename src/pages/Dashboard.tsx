@@ -13,6 +13,7 @@ import { memberService } from '../services/memberService';
 import { logActivity } from '../services/activityService';
 import { format, eachDayOfInterval, startOfMonth, endOfMonth, getDay } from 'date-fns';
 import ChurchSetupChecklist from '../components/ChurchSetupChecklist';
+import DailyDevotion from '../components/DailyDevotion';
 
 const verses = [
   { quote: "verse1_quote", ref: "Hebrews 11:1" },
@@ -326,6 +327,9 @@ export default function Dashboard() {
       )}
 
       {mode === 'Manager' && <ChurchSetupChecklist />}
+
+      {/* 每日灵修与属灵指引 — 通知 / 打卡热力图 / 主日签到 / 一分钟读经 / 信仰宣告 */}
+      <DailyDevotion />
 
       <Reorder.Group axis="y" values={sections} onReorder={setSections} className="space-y-12">
         {sections.map(sectionId => (

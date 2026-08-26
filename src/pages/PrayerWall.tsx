@@ -12,6 +12,16 @@ type Visibility = 'All Church' | 'Staff' | 'Pastors Only' | 'My Eyes Only';
 
 type Status = 'Pending Approval' | 'Published' | 'Internal';
 
+/** 代祷方向标签 — 让肢体能有针对性地为某一类需要祈祷。 */
+type Tag = 'family' | 'health' | 'work' | 'future' | 'other';
+const TAGS: { key: Tag; zh: string; en: string; icon: string }[] = [
+  { key: 'family', zh: '家庭', en: 'Family',   icon: 'home' },
+  { key: 'health', zh: '健康', en: 'Health',   icon: 'ecg_heart' },
+  { key: 'work',   zh: '工作', en: 'Work',     icon: 'work' },
+  { key: 'future', zh: '未来', en: 'Future',   icon: 'explore' },
+  { key: 'other',  zh: '其他', en: 'Other',    icon: 'more_horiz' },
+];
+
 interface PrayerRequest {
   id: string;
   content: string;
@@ -22,6 +32,7 @@ interface PrayerRequest {
   status: Status;
   createdAt: string;
   prayedCount: number;
+  tag: Tag;
 }
 
 const initialRequests: PrayerRequest[] = [];
@@ -37,6 +48,14 @@ export default function PrayerWall() {
   const [newPrayer, setNewPrayer] = useState('');
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [visibility, setVisibility] = useState<Visibility>('All Church');
+  const [tag, setTag] = useState<Tag>('other');
+  const [tagFilter, setTagFilter] = useState<Tag | 'all'>('all');
+  // 每人每条只计一次代祷，记在本地即可（服务端只存总数）。
+  const prayedKey = churchKey('prayed_by_me');
+  const [prayedByMe, setPrayedByMe] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem(`prayed_by_me_${activeChurchId || 'demo'}`) || '[]'); } catch { return []; }
+  });
+  const [burst, setBurst] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [justSubmitted, setJustSubmitted] = useState(false);
 
@@ -61,6 +80,7 @@ export default function PrayerWall() {
     visibility: r.visibility as Visibility, status: r.status as Status,
     createdAt: r.created_at ? new Date(r.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '',
     prayedCount: r.prayed_count || 0,
+    tag: (r.tag as Tag) || 'other',
   });
 
   // Load this church's prayer requests from the DB (synced across everyone)
@@ -85,6 +105,7 @@ export default function PrayerWall() {
       author_name: profile?.full_name || user?.email?.split('@')[0] || 'Anonymous',
       author_email: user?.email || '',
       visibility,
+      tag,
       status: mode === 'Manager' ? 'Published' : 'Pending Approval',
       prayed_count: 0,
     };
@@ -93,14 +114,21 @@ export default function PrayerWall() {
     setNewPrayer('');
     setIsAnonymous(false);
     setVisibility('All Church');
+    setTag('other');
     setIsSubmitting(false);
     if (mode !== 'Manager') { setJustSubmitted(true); setTimeout(() => setJustSubmitted(false), 5000); }
   };
 
   const handlePray = async (id: string) => {
+    if (prayedByMe.includes(id)) return;
     const req = requests.find(r => r.id === id);
     const next = (req?.prayedCount || 0) + 1;
     setRequests(requests.map(r => r.id === id ? { ...r, prayedCount: next } : r));
+    const mineNow = [...prayedByMe, id];
+    setPrayedByMe(mineNow);
+    try { localStorage.setItem(prayedKey, JSON.stringify(mineNow)); } catch {}
+    setBurst(id);
+    setTimeout(() => setBurst(b => (b === id ? null : b)), 1000);
     await supabase.from('church_prayers').update({ prayed_count: next }).eq('id', id);
   };
 
@@ -122,6 +150,7 @@ export default function PrayerWall() {
     if (req.status === 'Pending Approval') return req.authorEmail === myEmail;
     if (req.visibility === 'Pastors Only' || req.visibility === 'Staff') return false;
     if (req.visibility === 'My Eyes Only') return false;
+    if (tagFilter !== 'all' && req.tag !== tagFilter) return false;
     return true;
   });
 
@@ -134,7 +163,25 @@ export default function PrayerWall() {
   const MemberView = () => (
     <div className="flex flex-1 gap-8 flex-col-reverse md:flex-row min-h-0">
       {/* Wall Canvas */}
-      <div className="flex-1 overflow-y-auto no-scrollbar space-y-4 pr-2">
+      <div className="flex-1 md:overflow-y-auto no-scrollbar space-y-4 pr-2 pb-28 md:pb-4">
+        {/* 分类标签 — 滚动时贴在标题栏下方 */}
+        <div className="sticky top-0 z-10 -mx-1 px-1 py-2 bg-surface/95 backdrop-blur-sm flex gap-2 overflow-x-auto no-scrollbar">
+          {[{ key: 'all' as const, zh: '全部', en: 'All', icon: 'filter_list' }, ...TAGS].map((tg: any) => (
+            <button
+              key={tg.key}
+              onClick={() => setTagFilter(tg.key)}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-[12px] font-bold whitespace-nowrap transition-all ${
+                tagFilter === tg.key
+                  ? 'bg-black text-white'
+                  : 'bg-surface-container text-on-surface/70 border border-outline-variant/40'
+              }`}
+            >
+              <span className="material-symbols-outlined text-[15px]">{tg.icon}</span>
+              {isZh ? tg.zh : tg.en}
+            </button>
+          ))}
+        </div>
+
         <AnimatePresence mode="popLayout">
           {memberVisibleRequests.slice(0, displayLimit).map((req) => (
             <motion.div
@@ -161,17 +208,44 @@ export default function PrayerWall() {
                   </span>
                   <span className="text-[10px] text-outline-variant">{req.createdAt}</span>
                 </div>
+                <span className="shrink-0 px-3 py-1 rounded-full bg-surface-dim text-[10px] font-black uppercase tracking-widest text-on-surface whitespace-nowrap">
+                  {isZh ? TAGS.find(x => x.key === req.tag)?.zh : TAGS.find(x => x.key === req.tag)?.en}
+                </span>
               </div>
               <p className="font-serif text-lg text-on-surface mb-6 leading-relaxed">
                 {req.content}
               </p>
               <div className="flex justify-between items-center border-t border-outline-variant/30 pt-4">
-                <button 
+                <button
                   onClick={() => handlePray(req.id)}
-                  className="flex items-center gap-2 text-xs font-button text-on-surface hover:text-primary transition-colors"
+                  disabled={prayedByMe.includes(req.id)}
+                  className={`relative flex items-center gap-2 px-4 py-2.5 rounded-full text-[11px] font-black uppercase tracking-widest whitespace-nowrap transition-all active:scale-95 ${
+                    prayedByMe.includes(req.id)
+                      ? 'bg-surface-dim text-on-surface/60'
+                      : 'bg-black text-white'
+                  }`}
                 >
-                  <span className="material-symbols-outlined text-lg">pray</span>
-                  {t('pray')} ({req.prayedCount})
+                  <span className="material-symbols-outlined text-[16px]">
+                    {prayedByMe.includes(req.id) ? 'favorite' : 'volunteer_activism'}
+                  </span>
+                  {isZh ? '我为 TA 代祷' : 'I prayed'} · {req.prayedCount}
+
+                  {/* 心形动画 — 让软弱中的肢体看见团契的爱 */}
+                  <AnimatePresence>
+                    {burst === req.id && [0, 1, 2].map(i => (
+                      <motion.span
+                        key={i}
+                        initial={{ opacity: 1, y: 0, x: 0, scale: 0.6 }}
+                        animate={{ opacity: 0, y: -60 - i * 12, x: (i - 1) * 22, scale: 1.3 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.9, delay: i * 0.08, ease: 'easeOut' }}
+                        className="pointer-events-none absolute left-1/2 top-0 material-symbols-outlined text-error text-[22px]"
+                        style={{ fontVariationSettings: "'FILL' 1" }}
+                      >
+                        favorite
+                      </motion.span>
+                    ))}
+                  </AnimatePresence>
                 </button>
               </div>
             </motion.div>
@@ -188,7 +262,7 @@ export default function PrayerWall() {
       </div>
 
       {/* Input Sidebar */}
-      <div className="w-full md:w-96 shrink-0 flex flex-col gap-6">
+      <div className="w-full md:w-96 shrink-0 flex flex-col gap-6 pb-4">
         <div className="glass-card p-6 border-t-4 border-primary">
           <h3 className="mb-6 font-serif text-lg font-bold border-b border-outline-variant/30 pb-4">{t('sharePrayer')}</h3>
           
@@ -200,6 +274,24 @@ export default function PrayerWall() {
               className="w-full rounded-lg border border-outline-variant bg-surface-container p-4 font-body-md text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all resize-none h-32"
               required
             />
+
+            <div className="flex flex-col gap-2">
+              <span className="font-label-sm text-outline">{isZh ? '代祷方向' : 'Prayer focus'}</span>
+              <div className="flex flex-wrap gap-2">
+                {TAGS.map(tg => (
+                  <button
+                    key={tg.key}
+                    type="button"
+                    onClick={() => setTag(tg.key)}
+                    className={`px-4 py-2 rounded-full text-[12px] font-bold whitespace-nowrap transition-all ${
+                      tag === tg.key ? 'bg-black text-white' : 'bg-surface-container-low text-on-surface/70 border border-outline-variant/40'
+                    }`}
+                  >
+                    {isZh ? tg.zh : tg.en}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             <div className="flex flex-col gap-3 border border-outline-variant/50 rounded-lg p-4 bg-surface-container-low">
               <label className="flex items-center gap-3 cursor-pointer">
@@ -288,7 +380,7 @@ export default function PrayerWall() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 overflow-y-auto no-scrollbar pr-2 pb-8">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 md:overflow-y-auto no-scrollbar pr-2 pb-8">
         <AnimatePresence mode="popLayout">
           {managerFilteredRequests.map((req) => (
             <motion.div 
@@ -394,7 +486,7 @@ export default function PrayerWall() {
   );
 
   return (
-    <div className="flex h-full flex-col bg-surface p-6 md:p-8 overflow-hidden">
+    <div className="flex h-full flex-col bg-surface p-6 md:p-8 overflow-y-auto md:overflow-hidden pb-28 md:pb-8">
       {/* Header */}
       <div className="mb-8 flex justify-between items-end">
         <div>

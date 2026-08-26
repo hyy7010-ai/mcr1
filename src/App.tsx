@@ -48,6 +48,9 @@ const Approvals    = lazy(() => import('./pages/Approvals'));
 const Attendance   = lazy(() => import('./pages/Attendance'));
 const Calendar     = lazy(() => import('./pages/Calendar'));
 const Publications = lazy(() => import('./pages/Publications'));
+const Community    = lazy(() => import('./pages/Community'));
+const Messages     = lazy(() => import('./pages/Messages'));
+const Visitation   = lazy(() => import('./pages/Visitation'));
 
 // Minimal spinner shown while a lazy page chunk is loading
 function PageLoader() {
@@ -118,6 +121,9 @@ export default function App() {
                 <Route path="attendance"   element={<Suspense fallback={<PageLoader />}><Attendance /></Suspense>} />
                 <Route path="calendar"     element={<Suspense fallback={<PageLoader />}><Calendar /></Suspense>} />
                 <Route path="publications" element={<Suspense fallback={<PageLoader />}><Publications /></Suspense>} />
+                <Route path="community"    element={<Suspense fallback={<PageLoader />}><Community /></Suspense>} />
+                <Route path="messages"     element={<Suspense fallback={<PageLoader />}><Messages /></Suspense>} />
+                <Route path="visitation"   element={<Suspense fallback={<PageLoader />}><Visitation /></Suspense>} />
               </Route>
             </Routes>
           </BrowserRouter>
