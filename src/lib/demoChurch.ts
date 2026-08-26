@@ -803,13 +803,14 @@ function seeded(n: number): number {
 }
 
 /**
- * 近 200 天的打卡记录。越近越密（模拟习惯逐渐养成），今天三项全打，
- * 保证连续天数和热力图都不是 0。
+ * 一整年的打卡记录。热力图画的是 53 周（约 371 天），少于这个数左边就会
+ * 空一片。密度做成梯度：一年前刚开始、断断续续，越近越稳定。
  */
 export function sampleCheckins(userId: string) {
   const out: { date: string; type: 'read' | 'pray' | 'devotion' | 'sunday'; user_id: string }[] = [];
   const types = ['read', 'pray', 'devotion'] as const;
-  for (let back = 0; back < 200; back++) {
+  const SPAN = 378; // 比热力图的 371 天多一点，保证最左边也铺满
+  for (let back = 0; back < SPAN; back++) {
     const d = new Date();
     d.setDate(d.getDate() - back);
     const key = dayKey(d);
@@ -817,8 +818,8 @@ export function sampleCheckins(userId: string) {
       types.forEach(t => out.push({ date: key, type: t, user_id: userId }));
       continue;
     }
-    // 越久以前越稀疏：近 30 天约八成，200 天前约三成
-    const density = 0.8 - (back / 200) * 0.5;
+    // 一年前约两成，近期约八成五 —— 看得出「慢慢养成习惯」的过程
+    const density = 0.85 - (back / SPAN) * 0.65;
     types.forEach((t, i) => {
       if (seeded(back * 3 + i) < density) out.push({ date: key, type: t, user_id: userId });
     });
