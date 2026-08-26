@@ -216,7 +216,7 @@ export default function Layout() {
       { icon: 'calendar_month', label: t('roster'), path: '/app/roster' },
       { icon: 'newspaper', label: t('bulletin') || 'Weekly Bulletin', path: '/app/bulletin' },
       { icon: 'menu_book', label: t('publications') || '免费刊物', path: '/app/publications' },
-      { icon: 'music_note', label: t('worshipSongs'), path: '/app/songs' },
+      { icon: 'auto_awesome', label: isZh ? 'PPT 制作工具' : 'PPT Creator', path: 'https://www.liftppt.com/', external: true, featureKey: '/app/songs' },
       { icon: 'present_to_all', label: t('readyPptLib'), path: '/app/ready' },
       { icon: 'volunteer_activism', label: isZh ? '祷告工坊' : 'Prayer', path: '/app/prayer' },
       { icon: 'diversity_3', label: isZh ? '互动社区' : 'Community', path: '/app/community' },
@@ -251,7 +251,7 @@ export default function Layout() {
     // Apply the church's feature switches + per-role visibility.
     // Platform admins always see everything; core admin items are never in the config.
     const featureConfig = (church as any)?.feature_config || {};
-    return items.filter(item => isPlatformAdmin || canSeeModule(featureConfig, item.path, mode));
+    return items.filter(item => isPlatformAdmin || canSeeModule(featureConfig, (item as any).featureKey ?? item.path, mode));
   };
 
   const navItems = getNavItems();
@@ -380,7 +380,26 @@ export default function Layout() {
         <div className="flex-1 overflow-y-auto no-scrollbar scroll-smooth">
           <ul className="flex flex-col gap-1.5 px-3">
             {navItems.map((item) => {
-              const isActive = location.pathname.startsWith(item.path);
+              const isActive = !(item as any).external && location.pathname.startsWith(item.path);
+
+              // 外部工具（LiftPPT）——开新标签页，不劫持当前会话
+              if ((item as any).external) {
+                return (
+                  <li key={item.path}>
+                    <a
+                      href={item.path}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-4 py-3.5 flex items-center gap-4 rounded-xl transition-all relative group text-on-surface-variant hover:bg-surface-container-high"
+                    >
+                      <span className="material-symbols-outlined text-[22px] group-hover:scale-110 transition-all">{item.icon}</span>
+                      <span className="text-[13px] font-serif font-black tracking-tight flex-1">{item.label}</span>
+                      <span className="material-symbols-outlined text-[14px] opacity-40">open_in_new</span>
+                    </a>
+                  </li>
+                );
+              }
+
               return (
                 <li key={item.path}>
                   <NavLink

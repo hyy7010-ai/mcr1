@@ -26,6 +26,13 @@ const COUNTED = [
   { table: 'church_events',  zh: '日程',   en: 'Events' },
   { table: 'church_tasks',   zh: '任务',   en: 'Tasks' },
   { table: 'church_life',    zh: '灵修内容', en: 'Life' },
+  { table: 'church_finance', zh: '财务点收', en: 'Finance' },
+  { table: 'attendance_records', zh: '出勤', en: 'Attendance' },
+  { table: 'church_publications', zh: '刊物', en: 'Publications' },
+  { table: 'songs',          zh: '诗歌',   en: 'Songs' },
+  { table: 'church_ppt_library', zh: 'PPT', en: 'PPT' },
+  { table: 'group_posts',    zh: '小组帖子', en: 'Posts' },
+  { table: 'activity_logs',  zh: '活动日志', en: 'Activity' },
 ];
 
 export default function DemoChurchPanel() {
@@ -100,8 +107,8 @@ export default function DemoChurchPanel() {
         {exists === false && (
           <div className="rounded-2xl bg-error-container/60 border border-error/20 p-5 text-[13px] leading-relaxed text-on-error-container">
             {isZh
-              ? '数据库里还没有这条教会记录。请先在 Supabase 执行仓库根目录的 supabase_demo_church.sql —— 它会建好记录，并开放示例教会的读写权限（只针对这一个教会，不影响其它教会的隔离）。'
-              : 'The church row does not exist yet. Run supabase_demo_church.sql in Supabase first.'}
+              ? '数据库里还没有这条教会记录。请先把仓库根目录的 supabase_setup_all.sql 整份粘进 Supabase 的 SQL Editor 跑一次 —— 它会建好表、建好这条记录，并开放示例教会的只读权限（只针对这一个教会，不影响其它教会的隔离）。'
+              : 'The church row does not exist yet. Run supabase_setup_all.sql in Supabase first.'}
           </div>
         )}
 
@@ -173,8 +180,8 @@ export default function DemoChurchPanel() {
             {failures.length > 0 && (
               <p className="text-[12px] text-on-surface/70 mt-1 leading-relaxed">
                 {isZh
-                  ? '失败的表通常是还没建、或者 RLS 没放行 —— 跑一遍 supabase_demo_church.sql 就好。其余表已经写入成功。'
-                  : 'Failed tables are usually missing or blocked by RLS — run supabase_demo_church.sql.'}
+                  ? '失败的表通常是还没建、或者 RLS 没放行 —— 把 supabase_setup_all.sql 再跑一遍就好（可重复执行）。其余表已经写入成功。'
+                  : 'Failed tables are usually missing or blocked by RLS — run supabase_setup_all.sql.'}
               </p>
             )}
           </div>
