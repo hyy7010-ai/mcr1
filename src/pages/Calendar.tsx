@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useMode } from '../contexts/ModeContext';
 import { getActiveChurchId, isDemoChurch } from '../lib/permissions';
+import { isSampleChurch } from '../lib/demoChurch';
 import { logActivity } from '../services/activityService';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -104,7 +105,7 @@ export default function Calendar() {
   const { church, profile, user } = useAuth();
   const activeChurchId = getActiveChurchId(profile, church);
   const isDemo = isDemoChurch(church);
-  const canManage = mode === 'Manager';
+  const canManage = mode === 'Manager' && !isSampleChurch(church);
 
   const today = new Date();
   const [currentYear, setCurrentYear] = useState(today.getFullYear());

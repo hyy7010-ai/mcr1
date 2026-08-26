@@ -4,6 +4,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useMode } from '../contexts/ModeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { getActiveChurchId } from '../lib/permissions';
+import { isSampleChurch } from '../lib/demoChurch';
 import { supabase } from '../lib/supabase';
 import { logActivity } from '../services/activityService';
 import { socialService, GroupComment } from '../services/socialService';
@@ -60,7 +61,7 @@ export default function Groups() {
   const { mode } = useMode();
   const { profile, church } = useAuth();
   const activeChurchId = getActiveChurchId(profile, church);
-  const isManager = mode === 'Manager';
+  const isManager = mode === 'Manager' && !isSampleChurch(church);
   // Managers can edit any group; a group's leader can edit their own group (intro/avatar/details).
   const canEditGroup = (g?: Group | null) => isManager || (!!g && !!profile?.id && g.leader_id === profile.id);
 
