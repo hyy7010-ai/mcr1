@@ -10,7 +10,7 @@ import { socialService, AppNotification } from '../services/socialService';
 import { canSeeModule } from '../lib/featureModules';
 import OnboardingModal, { needsOnboarding } from './OnboardingModal';
 import AutoAssistant from './AutoAssistant';
-import { isSampleChurch } from '../lib/demoChurch';
+import { isSampleChurch, resetDemoChurch } from '../lib/demoChurch';
 
 export default function Layout() {
   const location = useLocation();
@@ -30,6 +30,25 @@ export default function Layout() {
   const [showOnboarding, setShowOnboarding] = useState(() => needsOnboarding(user?.id, profile?.role, profile?.onboarding_completed));
   const [isLogoUploading, setIsLogoUploading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false); // mobile drawer; always visible on md+
+  // 示例教会的一键填充 —— 平台管理员站在空样板间里时，按钮就该在眼前，
+  // 而不是要他去控制台里翻某个标签页。
+  const [seeding, setSeeding] = useState(false);
+  const [seedMsg, setSeedMsg] = useState<string | null>(null);
+  const handleSeedSample = async () => {
+    if (seeding) return;
+    setSeeding(true); setSeedMsg(null);
+    try {
+      const res = await resetDemoChurch();
+      const failed = res.filter(r => r.error);
+      const rows = res.reduce((n, r) => n + r.rows, 0);
+      setSeedMsg(failed.length
+        ? `${rows} 行已写入，${failed.length} 张表失败：${failed.map(f => f.table).join(', ')}`
+        : `✓ 已填充 ${rows} 行，刷新看看`);
+      if (!failed.length) setTimeout(() => window.location.reload(), 1200);
+    } catch (e: any) {
+      setSeedMsg('失败：' + (e?.message || String(e)));
+    } finally { setSeeding(false); }
+  };
   const dropdownRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
   const helpRef = useRef<HTMLDivElement>(null);
@@ -662,6 +681,19 @@ export default function Layout() {
                 ? '你正在参观示例教会 — 只读，看看别人是怎么用的。看中哪块结构，点「复制到我的教会」带回去。'
                 : 'Exploring the sample church — read-only. Found something useful? Copy it to your own church.'}
             </p>
+            {seedMsg && (
+              <span className="shrink-0 text-[11px] font-bold text-white/80 whitespace-nowrap">{seedMsg}</span>
+            )}
+            {isPlatformAdmin && (
+              <button
+                onClick={handleSeedSample}
+                disabled={seeding}
+                className="shrink-0 px-4 py-1.5 rounded-full border border-white/40 text-white text-[10px] font-black uppercase tracking-widest whitespace-nowrap hover:bg-white/10 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {seeding && <span className="material-symbols-outlined text-[14px] animate-spin">progress_activity</span>}
+                {seeding ? (isZh ? '填充中…' : 'Seeding…') : (isZh ? '填充示例内容' : 'Seed content')}
+              </button>
+            )}
             <button
               onClick={endSampleVisit}
               className="shrink-0 px-4 py-1.5 rounded-full bg-white text-black text-[10px] font-black uppercase tracking-widest whitespace-nowrap active:scale-95 transition-all"
