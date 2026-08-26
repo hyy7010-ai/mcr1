@@ -196,7 +196,10 @@ export default function Layout() {
         { icon: 'dashboard', label: t('dashboard'), path: '/app/dashboard' },
         { icon: 'church', label: t('aboutChurch'), path: '/app/about' },
         { icon: 'group', label: t('members'), path: '/app/members' },
-        { icon: 'volunteer_activism', label: t('prayerWall'), path: '/app/prayer' },
+        { icon: 'volunteer_activism', label: isZh ? '祷告工坊' : 'Prayer', path: '/app/prayer' },
+        { icon: 'diversity_3', label: isZh ? '互动社区' : 'Community', path: '/app/community' },
+        { icon: 'forum', label: isZh ? '消息' : 'Messages', path: '/app/messages' },
+        { icon: 'home_health', label: isZh ? '探访关怀' : 'Visitation', path: '/app/visitation' },
         { icon: 'favorite', label: t('giving'), path: '/app/giving' },
         { icon: 'groups', label: t('groups'), path: '/app/groups' },
       ];
@@ -214,7 +217,10 @@ export default function Layout() {
       { icon: 'menu_book', label: t('publications') || '免费刊物', path: '/app/publications' },
       { icon: 'music_note', label: t('worshipSongs'), path: '/app/songs' },
       { icon: 'present_to_all', label: t('readyPptLib'), path: '/app/ready' },
-      { icon: 'volunteer_activism', label: t('prayerWall'), path: '/app/prayer' },
+      { icon: 'volunteer_activism', label: isZh ? '祷告工坊' : 'Prayer', path: '/app/prayer' },
+      { icon: 'diversity_3', label: isZh ? '互动社区' : 'Community', path: '/app/community' },
+      { icon: 'forum', label: isZh ? '消息' : 'Messages', path: '/app/messages' },
+      { icon: 'home_health', label: isZh ? '探访关怀' : 'Visitation', path: '/app/visitation' },
       { icon: 'favorite', label: t('giving'), path: '/app/giving' },
     ];
 
@@ -621,7 +627,7 @@ export default function Layout() {
         )}
 
         {/* Page Content */}
-        <div className="flex-1 overflow-auto w-full min-h-0 bg-surface">
+        <div className="flex-1 overflow-auto w-full min-h-0 bg-surface pb-[76px] md:pb-0 print:pb-0">
             {!isPlatformAdmin && !canSeeModule((church as any)?.feature_config || {}, location.pathname, mode) ? (
               <div className="h-full flex flex-col items-center justify-center text-center p-8 gap-3">
                 <span className="material-symbols-outlined text-6xl text-outline/30">lock</span>
@@ -634,6 +640,36 @@ export default function Layout() {
             )}
         </div>
       </div>
+
+      {/* Mobile bottom tabs — 首页 / 祷告 / 社区 / 消息 / 我的 */}
+      <nav className="md:hidden print:hidden fixed bottom-0 inset-x-0 z-40 bg-surface-container-lowest/95 backdrop-blur-md border-t border-outline-variant/40 pb-[env(safe-area-inset-bottom)]">
+        <div className="flex">
+          {[
+            { icon: 'home',                label: isZh ? '首页' : 'Home',      path: '/app/dashboard' },
+            { icon: 'volunteer_activism',  label: isZh ? '祷告' : 'Prayer',    path: '/app/prayer' },
+            { icon: 'diversity_3',         label: isZh ? '社区' : 'Community', path: '/app/community' },
+            { icon: 'forum',               label: isZh ? '消息' : 'Messages',  path: '/app/messages' },
+            { icon: 'person',              label: isZh ? '我的' : 'Me',        path: '/app/profile' },
+          ].map(tab => (
+            <NavLink
+              key={tab.path}
+              to={tab.path}
+              className={({ isActive }) => `flex-1 flex flex-col items-center gap-0.5 py-2.5 transition-colors ${
+                isActive ? 'text-on-surface' : 'text-outline'
+              }`}
+            >
+              {({ isActive }) => (
+                <>
+                  <span className="material-symbols-outlined text-[22px]" style={isActive ? { fontVariationSettings: "'FILL' 1" } : undefined}>
+                    {tab.icon}
+                  </span>
+                  <span className="text-[10px] font-bold whitespace-nowrap">{tab.label}</span>
+                </>
+              )}
+            </NavLink>
+          ))}
+        </div>
+      </nav>
 
       {/* Auto mode: the all-in-one assistant floats over every page */}
       {assistMode === 'auto' && <AutoAssistant />}

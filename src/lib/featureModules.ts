@@ -24,6 +24,9 @@ export const FEATURE_MODULES: FeatureModule[] = [
   { key: '/app/ai',           icon: 'smart_toy',          en: 'Grace Assistant',  zh: 'Grace 助理' },
   { key: '/app/activity',     icon: 'history',            en: 'Activity Log',     zh: '活动日志' },
   { key: '/app/about',        icon: 'church',             en: 'Our Church',       zh: '我们的教会' },
+  { key: '/app/community',    icon: 'diversity_3',        en: 'Community',        zh: '互动社区' },
+  { key: '/app/messages',     icon: 'forum',              en: 'Messages',         zh: '消息私聊' },
+  { key: '/app/visitation',   icon: 'home_health',        en: 'Visitation',       zh: '探访关怀' },
 ];
 
 // The three view roles a module can be restricted to (match the app's modes).

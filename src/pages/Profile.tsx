@@ -3,6 +3,7 @@ import { useMode } from '../contexts/ModeContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import SpiritualFootprint from '../components/SpiritualFootprint';
 
 const calcAge = (dobStr: string): number | undefined => {
   if (!dobStr) return undefined;
@@ -154,6 +155,9 @@ export default function Profile() {
           <p className="font-label-sm text-on-surface-variant">Manage your personal details and app preferences.</p>
         </div>
       </div>
+
+      {/* 属灵成长足迹 — 打卡统计 / 徽章 / 我的代祷 / 我的课程 */}
+      <SpiritualFootprint />
 
       <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
         {/* Left Column: Avatar & Quick Info */}
