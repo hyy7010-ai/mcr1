@@ -1,3 +1,5 @@
+import { DEMO_CHURCH_ID, sampleVisit } from './demoChurch';
+
 /**
  * Centralized permission helpers.
  *
@@ -49,6 +51,10 @@ export function canDoStaff(profile: any, user?: any): boolean {
  * `profile?.church_id` directly so that Super Admins can switch context.
  */
 export function getActiveChurchId(profile: any, church: any): string | null {
+  // 参观示例教会期间一律返回示例教会 —— 不看 church state。它会被 token
+  // 刷新等事件异步冲掉，页面在那个窗口里会读到用户自己教会的数据（表现为
+  // 「离开一会儿回来 demo 数据就没了」）。
+  if (sampleVisit.isVisiting()) return DEMO_CHURCH_ID;
   const churchId = church?.id;
   // Skip demo placeholder — fall through to real profile church_id
   if (churchId && churchId !== 'demo-church-id') return churchId;
