@@ -10,13 +10,14 @@ import { socialService, AppNotification } from '../services/socialService';
 import { canSeeModule } from '../lib/featureModules';
 import OnboardingModal, { needsOnboarding } from './OnboardingModal';
 import AutoAssistant from './AutoAssistant';
+import { isSampleChurch } from '../lib/demoChurch';
 
 export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { mode, setMode, assistMode, setAssistMode } = useMode();
   const { t, language, setLanguage, isZh } = useLanguage();
-  const { user, signOut, church, profile, updateChurch } = useAuth();
+  const { user, signOut, church, profile, updateChurch, visitSampleChurch, endSampleVisit } = useAuth();
   const [isModeOpen, setIsModeOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
@@ -407,7 +408,22 @@ export default function Layout() {
           </ul>
         </div>
 
-        <div className="mt-auto px-2 pt-4 border-t border-outline-variant/20 shrink-0 flex gap-1">
+        {/* 参观示例教会 —— 新用户先进样板间看一圈，就知道每个页面该填什么 */}
+        <div className="mt-auto px-4 pt-4 shrink-0">
+          {!isSampleChurch(church) && (
+            <button
+              onClick={visitSampleChurch}
+              className="w-full px-4 py-3 rounded-2xl border border-dashed border-outline-variant text-outline hover:border-primary hover:text-primary transition-all flex items-center gap-2.5 group"
+            >
+              <span className="material-symbols-outlined text-[18px] group-hover:scale-110 transition-transform">explore</span>
+              <span className="text-[11px] font-black uppercase tracking-widest whitespace-nowrap">
+                {isZh ? '参观示例教会' : 'Sample church'}
+              </span>
+            </button>
+          )}
+        </div>
+
+        <div className="px-2 pt-4 mt-4 border-t border-outline-variant/20 shrink-0 flex gap-1">
           <a href="mailto:support@gracecommunity.com" className="flex-1 px-2 py-2 flex items-center justify-center gap-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container transition-all group">
             <span className="material-symbols-outlined text-[16px] group-hover:text-primary transition-colors">contact_support</span>
             <span className="text-[10px] font-bold group-hover:text-primary transition-colors">{t('support')}</span>
@@ -617,6 +633,24 @@ export default function Layout() {
             </div>
           </div>
         </header>
+
+        {/* 参观示例教会时的常驻提示 —— 让人随时知道自己在样板间里，且能一键回去 */}
+        {isSampleChurch(church) && (
+          <div className="w-full px-4 py-2.5 bg-black text-white flex items-center gap-3 print:hidden">
+            <span className="material-symbols-outlined text-[18px] shrink-0">visibility</span>
+            <p className="flex-1 text-xs font-bold leading-snug">
+              {isZh
+                ? '你正在参观示例教会 — 这里的内容都是示范用的，随便点、随便改，不会影响你自己教会的数据。'
+                : 'You are exploring the sample church — try anything, nothing here touches your own church.'}
+            </p>
+            <button
+              onClick={endSampleVisit}
+              className="shrink-0 px-4 py-1.5 rounded-full bg-white text-black text-[10px] font-black uppercase tracking-widest whitespace-nowrap active:scale-95 transition-all"
+            >
+              {isZh ? '退出参观' : 'Leave'}
+            </button>
+          </div>
+        )}
 
         {/* Demo church banner (not shown to Super Admins — for them it just means no church selected yet) */}
         {isDemo && !isPlatformAdmin && (

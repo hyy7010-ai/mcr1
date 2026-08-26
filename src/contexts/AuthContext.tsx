@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { DEMO_CHURCH_ID, DEMO_CHURCH_NAME, sampleVisit } from '../lib/demoChurch';
 import { churchService } from '../services/churchService';
 
 interface AuthContextType {
@@ -11,6 +12,9 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   isLoading: boolean;
   switchChurch: (church: any) => void;
+  visitSampleChurch: () => void;
+  endSampleVisit: () => void;
+  isVisitingSample: boolean;
   refreshProfile: () => Promise<void>;
   signInAsDemo: (email: string) => void;
   updateChurch: (updates: any) => void;
@@ -382,6 +386,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     console.warn('Demo mode is disabled');
   };
 
+  // 参观示例教会：只换当前会话的教会上下文，不写 church_<uid> 缓存 ——
+  // 刷新页面就自动回到自己的教会，用户不会被困在样板间里。
+  const visitSampleChurch = () => {
+    sampleVisit.start(church);
+    setChurch({ id: DEMO_CHURCH_ID, name: DEMO_CHURCH_NAME, code: 'DEMO', church_code: 'DEMO' });
+  };
+
+  const endSampleVisit = () => {
+    const back = sampleVisit.end();
+    setChurch(back ?? null);
+    if (!back && user) {
+      try { const c = localStorage.getItem(`church_${user.id}`); if (c) setChurch(JSON.parse(c)); } catch {}
+    }
+  };
+
   const switchChurch = (newChurch: any) => {
     if (profile?.role === 'Super Admin' || profile?.role === 'SuperAdmin') {
       setChurch(newChurch);
@@ -431,7 +450,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider value={{ 
       session, user, profile, church, signOut, isLoading, 
-      switchChurch, refreshProfile, signInAsDemo, updateChurch, updateProfile 
+      switchChurch, visitSampleChurch, endSampleVisit,
+      isVisitingSample: church?.id === DEMO_CHURCH_ID,
+      refreshProfile, signInAsDemo, updateChurch, updateProfile 
     }}>
       {children}
     </AuthContext.Provider>
