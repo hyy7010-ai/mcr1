@@ -236,47 +236,56 @@ export default function Layout() {
       ];
     }
     
-    // Staff/Manager see similar things but permissions will differ inside pages
-    const allStaffItems = [
-      { icon: 'dashboard', label: t('dashboard'), path: '/app/dashboard' },
-      { icon: 'church', label: t('aboutChurch'), path: '/app/about' },
-      { icon: 'groups', label: t('groups'), path: '/app/groups' },
-      { icon: 'group', label: t('members'), path: '/app/members' },
-      { icon: 'task_alt', label: t('tasks'), path: '/app/tasks' },
-      { icon: 'calendar_month', label: t('roster'), path: '/app/roster' },
-      { icon: 'how_to_reg', label: isZh ? '主日出席' : 'Attendance', path: '/app/attendance' },
-      { icon: 'newspaper', label: t('bulletin') || 'Weekly Bulletin', path: '/app/bulletin' },
-      { icon: 'menu_book', label: t('publications') || '免费刊物', path: '/app/publications' },
-      { icon: 'auto_awesome', label: isZh ? 'PPT 制作工具' : 'PPT Creator', path: 'https://www.liftppt.com/', external: true, featureKey: '/app/songs' },
-      { icon: 'volunteer_activism', label: isZh ? '祷告工坊' : 'Prayer', path: '/app/prayer' },
-      { icon: 'diversity_3', label: isZh ? '互动社区' : 'Community', path: '/app/community' },
-      { icon: 'forum', label: isZh ? '消息' : 'Messages', path: '/app/messages' },
-      { icon: 'home_health', label: isZh ? '探访关怀' : 'Visitation', path: '/app/visitation' },
-      { icon: 'favorite', label: t('giving'), path: '/app/giving' },
+    // 同工 / 管理员：与会友模式同样按组归类，多一个「管理」组。
+    // splice 插队那种写法读起来要数索引，改成按组声明。
+    const SEC = {
+      church: isZh ? '我们的教会' : 'Our Church',
+      sunday: isZh ? '主日聚会' : 'Sunday',
+      groups: isZh ? '小组' : 'Groups',
+      events: isZh ? '活动' : 'Activities',
+      admin:  isZh ? '管理' : 'Admin',
+      me:     isZh ? '我' : 'Me',
+    };
+
+    const isManagerMode = mode === 'Manager';
+
+    const items = [
+      { section: SEC.church, icon: 'church', label: t('aboutChurch'), path: '/app/about' },
+      { section: SEC.church, icon: 'group', label: t('members'), path: '/app/members' },
+      { section: SEC.church, icon: 'forum', label: isZh ? '消息' : 'Messages', path: '/app/messages' },
+
+      { section: SEC.sunday, icon: 'dashboard', label: t('dashboard'), path: '/app/dashboard' },
+      { section: SEC.sunday, icon: 'calendar_month', label: t('roster'), path: '/app/roster' },
+      { section: SEC.sunday, icon: 'how_to_reg', label: isZh ? '主日出席' : 'Attendance', path: '/app/attendance' },
+      // 周报是管理侧工具，同工看不到
+      ...(isManagerMode ? [{ section: SEC.sunday, icon: 'newspaper', label: t('bulletin') || 'Weekly Bulletin', path: '/app/bulletin' }] : []),
+
+      { section: SEC.groups, icon: 'groups', label: t('groups'), path: '/app/groups' },
+
+      { section: SEC.events, icon: 'diversity_3', label: isZh ? '互动社区' : 'Community', path: '/app/community' },
+      { section: SEC.events, icon: 'volunteer_activism', label: isZh ? '祷告工坊' : 'Prayer', path: '/app/prayer' },
+      { section: SEC.events, icon: 'home_health', label: isZh ? '探访关怀' : 'Visitation', path: '/app/visitation' },
+      { section: SEC.events, icon: 'menu_book', label: t('publications') || '免费刊物', path: '/app/publications' },
+      { section: SEC.events, icon: 'auto_awesome', label: isZh ? 'PPT 制作工具' : 'PPT Creator', path: 'https://www.liftppt.com/', external: true, featureKey: '/app/songs' },
+
+      // ── 管理 ──────────────────────────────────────────────────────────
+      ...(isManagerMode ? [
+        { section: SEC.admin, icon: 'how_to_reg', label: isZh ? '成员审核' : 'Approvals', path: '/app/approvals' },
+        { section: SEC.admin, icon: 'task_alt', label: t('tasks'), path: '/app/tasks' },
+        { section: SEC.admin, icon: 'build', label: isZh ? '管理工具' : 'Tools', path: '/app/tools' },
+        { section: SEC.admin, icon: 'history', label: t('activityLog') || 'Activity Log', path: '/app/activity' },
+        { section: SEC.admin, icon: 'smart_toy', label: 'Grace Assistant', path: '/app/ai' },
+      ] : [
+        // 同工只拿财务点收，不给整个管理工具
+        { section: SEC.admin, icon: 'payments', label: isZh ? '财务点收' : 'Finance Count', path: '/app/tools' },
+      ]),
+      ...(isPlatformAdmin ? [
+        { section: SEC.admin, icon: 'admin_panel_settings', label: isZh ? '平台管理控制台' : 'Platform Console', path: '/app/super-admin' },
+      ] : []),
+
+      { section: SEC.me, icon: 'person', label: isZh ? '个人中心' : 'Profile', path: '/app/profile' },
+      { section: SEC.me, icon: 'favorite', label: t('giving'), path: '/app/giving' },
     ];
-
-    // Staff mode: remove Tasks and Weekly Bulletin (management-only tools)
-    const staffExclude = ['/app/tasks', '/app/bulletin'];
-    const items = mode === 'Staff'
-      ? allStaffItems.filter(i => !staffExclude.includes(i.path))
-      : allStaffItems;
-
-    // Staff get the finance-count tool (synced with managers), but not the rest of Tools.
-    if (mode === 'Staff') {
-      items.push({ icon: 'payments', label: isZh ? '财务点收' : 'Finance Count', path: '/app/tools' });
-    }
-
-    if (mode === 'Manager') {
-      items.splice(1, 0, { icon: 'smart_toy', label: 'Grace Assistant', path: '/app/ai' });
-      items.splice(2, 0, { icon: 'how_to_reg', label: language.startsWith('zh') ? '成员审核' : 'Approvals', path: '/app/approvals' });
-      // Activity Log is Manager-only
-      items.push({ icon: 'history', label: t('activityLog') || 'Activity Log', path: '/app/activity' });
-      items.push({ icon: 'build', label: language.startsWith('zh') ? '管理工具' : 'Tools', path: '/app/tools' });
-    }
-
-    if (isPlatformAdmin) {
-      items.push({ icon: 'admin_panel_settings', label: isZh ? '平台管理控制台' : 'Platform Console', path: '/app/super-admin' });
-    }
 
     // Apply the church's feature switches + per-role visibility.
     // Platform admins always see everything; core admin items are never in the config.
