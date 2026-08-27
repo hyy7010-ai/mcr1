@@ -295,6 +295,26 @@ export default function Layout() {
 
   const navItems = getNavItems();
 
+  // 分组变成可点的 tab：点哪个只显示哪一组的功能。
+  // 分组顺序沿用 navItems 的出现顺序，不额外维护一份清单。
+  const sections = navItems.reduce<string[]>((acc, it) => {
+    const sec = (it as any).section as string | undefined;
+    if (sec && !acc.includes(sec)) acc.push(sec);
+    return acc;
+  }, []);
+  // 当前路由属于哪一组
+  const sectionOfPath = navItems.find(
+    it => !(it as any).external && location.pathname.startsWith(it.path),
+  ) as any;
+  const [openSection, setOpenSection] = useState<string | null>(null);
+  const activeSection = openSection ?? sectionOfPath?.section ?? sections[0] ?? null;
+  // 跳到别的组的页面时（比如从搜索或外部链接进来），tab 跟着走
+  useEffect(() => { setOpenSection(null); }, [location.pathname]);
+
+  const visibleItems = sections.length
+    ? navItems.filter(it => (it as any).section === activeSection)
+    : navItems;
+
   const APP_VERSION = "v2.9.0-Lyrics";
 
   return (
@@ -416,12 +436,34 @@ export default function Layout() {
            </div>
         </div>
 
+        {/* 分组 tab —— 点一个只看一组，侧栏不再是一长条 */}
+        {sections.length > 1 && (
+          <div className="px-3 pb-3 shrink-0">
+            <div className="grid grid-cols-2 gap-1.5">
+              {sections.map(sec => {
+                const on = sec === activeSection;
+                return (
+                  <button
+                    key={sec}
+                    onClick={() => setOpenSection(sec)}
+                    aria-pressed={on}
+                    className={`px-2.5 py-2 rounded-xl text-[11px] font-black tracking-tight whitespace-nowrap truncate transition-all ${
+                      on ? 'bg-primary text-on-primary shadow-sm' : 'bg-surface-container text-outline hover:text-on-surface'
+                    }`}
+                  >
+                    {sec}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         <div className="flex-1 overflow-y-auto no-scrollbar scroll-smooth">
           <ul className="flex flex-col gap-1.5 px-3">
-            {navItems.map((item, idx) => {
+            {visibleItems.map((item, idx) => {
               const isActive = !(item as any).external && location.pathname.startsWith(item.path);
-              const section = (item as any).section as string | undefined;
-              const newSection = section && section !== (navItems[idx - 1] as any)?.section;
+              void idx;
 
               // 外部工具（LiftPPT）——开新标签页，不劫持当前会话
               if ((item as any).external) {
@@ -443,11 +485,6 @@ export default function Layout() {
 
               return (
                 <li key={item.path}>
-                  {newSection && (
-                    <p className="px-4 pt-5 pb-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-outline/70 whitespace-nowrap">
-                      {section}
-                    </p>
-                  )}
                   <NavLink
                     to={item.path}
                     className={`px-4 py-3.5 flex items-center gap-4 rounded-xl transition-all relative group ${
