@@ -33,10 +33,24 @@ export const OWNER_EMAILS = new Set([
  * Returns true if the user is a Super Admin, regardless of whether
  * the check comes from a real session or a demo session.
  */
+/**
+ * 取用户邮箱。Google 等 OAuth 流程里 user.email 可能是空的，真实邮箱只在
+ * user_metadata 或 identities 里 —— AuthContext 早就为此写了三级兜底，
+ * 这里原本只看 user.email，于是用 Google 登录的所有者拿不到 Super Admin。
+ */
+export function resolveEmail(profile: any, user?: any): string {
+  return String(
+    user?.email
+    || user?.user_metadata?.email
+    || user?.identities?.[0]?.identity_data?.email
+    || profile?.email
+    || '',
+  ).toLowerCase().trim();
+}
+
 export function isSuperAdmin(profile: any, user?: any): boolean {
   if (isSuperAdminRole(profile?.role)) return true;
-  const email = (user?.email ?? profile?.email ?? '').toLowerCase().trim();
-  return OWNER_EMAILS.has(email);
+  return OWNER_EMAILS.has(resolveEmail(profile, user));
 }
 
 /**
