@@ -12,6 +12,16 @@ import OnboardingModal, { needsOnboarding } from './OnboardingModal';
 import AutoAssistant from './AutoAssistant';
 import { isSampleChurch, resetDemoChurch } from '../lib/demoChurch';
 
+/** 底部 tab 的分组图标。取不到就退回该组第一页自己的图标。 */
+const SECTION_ICON: Record<string, string> = {
+  '我们的教会': 'church',      'Our Church': 'church',
+  '主日聚会':   'dashboard',   'Sunday': 'dashboard',
+  '小组':       'groups',      'Groups': 'groups',
+  '活动':       'diversity_3', 'Activities': 'diversity_3',
+  '管理':       'admin_panel_settings', 'Admin': 'admin_panel_settings',
+  '我':         'person',      'Me': 'person',
+};
+
 export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -775,6 +785,29 @@ export default function Layout() {
           </div>
         )}
 
+        {/* 手机端子导航：当前分组里有哪些功能 —— 侧栏在手机上是收起来的，
+            没有这一行就只能看到分组、看不到组里有什么 */}
+        {sections.length > 1 && visibleItems.length > 1 && (
+          <div className="md:hidden print:hidden shrink-0 border-b border-outline-variant/30 bg-surface">
+            <div className="flex gap-2 overflow-x-auto no-scrollbar px-4 py-2.5">
+              {visibleItems.map(item => {
+                const on = !(item as any).external && location.pathname.startsWith(item.path);
+                const cls = `shrink-0 px-4 py-2 rounded-full text-[12px] font-bold whitespace-nowrap transition-all ${
+                  on ? 'bg-black text-white' : 'bg-surface-container text-on-surface/70'}`;
+                return (item as any).external ? (
+                  <a key={item.path} href={item.path} target="_blank" rel="noopener noreferrer" className={cls}>
+                    {item.label} ↗
+                  </a>
+                ) : (
+                  <button key={item.path} onClick={() => navigate(item.path)} className={cls}>
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Page Content */}
         <div className="flex-1 overflow-auto w-full min-h-0 bg-surface pb-[76px] md:pb-0 print:pb-0">
             {!isPlatformAdmin && !canSeeModule((church as any)?.feature_config || {}, location.pathname, mode) ? (
@@ -790,33 +823,30 @@ export default function Layout() {
         </div>
       </div>
 
-      {/* Mobile bottom tabs — 教会 / 主日 / 小组 / 活动 / 我（与会友模式的五个分组一致）*/}
+      {/* 手机底部 tab = 分组（随角色变），点进去在内容区顶部显示该组的功能 */}
       <nav className="md:hidden print:hidden fixed bottom-0 inset-x-0 z-40 bg-surface-container-lowest/95 backdrop-blur-md border-t border-outline-variant/40 pb-[env(safe-area-inset-bottom)]">
         <div className="flex">
-          {[
-            { icon: 'church',      label: isZh ? '教会' : 'Church',  path: '/app/about' },
-            { icon: 'dashboard',   label: isZh ? '主日' : 'Sunday',  path: '/app/dashboard' },
-            { icon: 'groups',      label: isZh ? '小组' : 'Groups',  path: '/app/groups' },
-            { icon: 'diversity_3', label: isZh ? '活动' : 'Events',  path: '/app/community' },
-            { icon: 'person',      label: isZh ? '我' : 'Me',        path: '/app/profile' },
-          ].map(tab => (
-            <NavLink
-              key={tab.path}
-              to={tab.path}
-              className={({ isActive }) => `flex-1 flex flex-col items-center gap-0.5 py-2.5 transition-colors ${
-                isActive ? 'text-on-surface' : 'text-outline'
-              }`}
-            >
-              {({ isActive }) => (
-                <>
-                  <span className="material-symbols-outlined text-[22px]" style={isActive ? { fontVariationSettings: "'FILL' 1" } : undefined}>
-                    {tab.icon}
-                  </span>
-                  <span className="text-[10px] font-bold whitespace-nowrap">{tab.label}</span>
-                </>
-              )}
-            </NavLink>
-          ))}
+          {sections.map(sec => {
+            const first = navItems.find(it => (it as any).section === sec && !(it as any).external);
+            if (!first) return null;
+            const on = sec === activeSection;
+            return (
+              <button
+                key={sec}
+                onClick={() => { setOpenSection(sec); navigate(first.path); }}
+                aria-current={on ? 'page' : undefined}
+                className={`flex-1 min-w-0 flex flex-col items-center gap-0.5 py-2.5 transition-colors ${
+                  on ? 'text-on-surface' : 'text-outline'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[22px]"
+                  style={on ? { fontVariationSettings: "'FILL' 1" } : undefined}>
+                  {SECTION_ICON[sec] || first.icon}
+                </span>
+                <span className="text-[10px] font-bold truncate max-w-full px-0.5">{sec}</span>
+              </button>
+            );
+          })}
         </div>
       </nav>
 
