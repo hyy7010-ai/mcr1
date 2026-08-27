@@ -276,7 +276,7 @@ export default function Layout() {
       { section: SEC.events, icon: 'volunteer_activism', label: isZh ? '祷告工坊' : 'Prayer', path: '/app/prayer' },
       { section: SEC.events, icon: 'home_health', label: isZh ? '探访关怀' : 'Visitation', path: '/app/visitation' },
       { section: SEC.events, icon: 'menu_book', label: t('publications') || '免费刊物', path: '/app/publications' },
-      { section: SEC.events, icon: 'auto_awesome', label: isZh ? 'PPT 制作工具' : 'PPT Creator', path: 'https://www.liftppt.com/', external: true, featureKey: '/app/songs' },
+      { section: SEC.events, icon: 'auto_awesome', label: isZh ? '敬拜 PPT 制作工具' : 'Worship PPT Creator', path: 'https://www.liftppt.com/', external: true, featureKey: '/app/songs' },
 
       // ── 管理 ──────────────────────────────────────────────────────────
       ...(isManagerMode ? [
