@@ -141,7 +141,10 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/" replace />;
   }
 
-  if (profile?.role === 'Pending' || (!profile?.church_id && !isDev)) {
+  // 平台管理员不进待审核页。Google 首次登录时 profiles.role 默认是
+  // 'Pending'，原来的写法只让 isDev 绕过「没有 church_id」那半边，所有者
+  // 用 Google 登录照样会被挡在待审核页出不来。
+  if (!isDev && (profile?.role === 'Pending' || !profile?.church_id)) {
     return <PendingApproval />;
   }
 
