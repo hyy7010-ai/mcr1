@@ -214,16 +214,25 @@ export default function Layout() {
 
   const getNavItems = () => {
     if (mode === 'Member') {
+      // 会友模式按五组归类。同工/管理员仍是平铺列表 —— 他们要的是速度，
+      // 会友要的是「我该去哪儿」。
       return [
-        { icon: 'dashboard', label: t('dashboard'), path: '/app/dashboard' },
-        { icon: 'church', label: t('aboutChurch'), path: '/app/about' },
-        { icon: 'group', label: t('members'), path: '/app/members' },
-        { icon: 'volunteer_activism', label: isZh ? '祷告工坊' : 'Prayer', path: '/app/prayer' },
-        { icon: 'diversity_3', label: isZh ? '互动社区' : 'Community', path: '/app/community' },
-        { icon: 'forum', label: isZh ? '消息' : 'Messages', path: '/app/messages' },
-        { icon: 'home_health', label: isZh ? '探访关怀' : 'Visitation', path: '/app/visitation' },
-        { icon: 'favorite', label: t('giving'), path: '/app/giving' },
-        { icon: 'groups', label: t('groups'), path: '/app/groups' },
+        { section: isZh ? '我们的教会' : 'Our Church', icon: 'church', label: t('aboutChurch'), path: '/app/about' },
+        { section: isZh ? '我们的教会' : 'Our Church', icon: 'group', label: t('members'), path: '/app/members' },
+        { section: isZh ? '我们的教会' : 'Our Church', icon: 'forum', label: isZh ? '消息' : 'Messages', path: '/app/messages' },
+
+        { section: isZh ? '主日聚会' : 'Sunday', icon: 'dashboard', label: isZh ? '主日看板' : 'Sunday Board', path: '/app/dashboard' },
+        { section: isZh ? '主日聚会' : 'Sunday', icon: 'newspaper', label: t('bulletin') || '每周周报', path: '/app/bulletin' },
+
+        { section: isZh ? '小组' : 'Groups', icon: 'groups', label: isZh ? '我的小组' : 'My Group', path: '/app/groups' },
+
+        { section: isZh ? '活动' : 'Activities', icon: 'diversity_3', label: isZh ? '互动社区' : 'Community', path: '/app/community' },
+        { section: isZh ? '活动' : 'Activities', icon: 'volunteer_activism', label: isZh ? '祷告工坊' : 'Prayer', path: '/app/prayer' },
+        { section: isZh ? '活动' : 'Activities', icon: 'home_health', label: isZh ? '探访关怀' : 'Visitation', path: '/app/visitation' },
+        { section: isZh ? '活动' : 'Activities', icon: 'menu_book', label: t('publications') || '免费刊物', path: '/app/publications' },
+
+        { section: isZh ? '我' : 'Me', icon: 'person', label: isZh ? '个人中心' : 'Profile', path: '/app/profile' },
+        { section: isZh ? '我' : 'Me', icon: 'favorite', label: t('giving'), path: '/app/giving' },
       ];
     }
     
@@ -400,8 +409,10 @@ export default function Layout() {
 
         <div className="flex-1 overflow-y-auto no-scrollbar scroll-smooth">
           <ul className="flex flex-col gap-1.5 px-3">
-            {navItems.map((item) => {
+            {navItems.map((item, idx) => {
               const isActive = !(item as any).external && location.pathname.startsWith(item.path);
+              const section = (item as any).section as string | undefined;
+              const newSection = section && section !== (navItems[idx - 1] as any)?.section;
 
               // 外部工具（LiftPPT）——开新标签页，不劫持当前会话
               if ((item as any).external) {
@@ -423,6 +434,11 @@ export default function Layout() {
 
               return (
                 <li key={item.path}>
+                  {newSection && (
+                    <p className="px-4 pt-5 pb-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-outline/70 whitespace-nowrap">
+                      {section}
+                    </p>
+                  )}
                   <NavLink
                     to={item.path}
                     className={`px-4 py-3.5 flex items-center gap-4 rounded-xl transition-all relative group ${
@@ -728,15 +744,15 @@ export default function Layout() {
         </div>
       </div>
 
-      {/* Mobile bottom tabs — 首页 / 祷告 / 社区 / 消息 / 我的 */}
+      {/* Mobile bottom tabs — 教会 / 主日 / 小组 / 活动 / 我（与会友模式的五个分组一致）*/}
       <nav className="md:hidden print:hidden fixed bottom-0 inset-x-0 z-40 bg-surface-container-lowest/95 backdrop-blur-md border-t border-outline-variant/40 pb-[env(safe-area-inset-bottom)]">
         <div className="flex">
           {[
-            { icon: 'home',                label: isZh ? '首页' : 'Home',      path: '/app/dashboard' },
-            { icon: 'volunteer_activism',  label: isZh ? '祷告' : 'Prayer',    path: '/app/prayer' },
-            { icon: 'diversity_3',         label: isZh ? '社区' : 'Community', path: '/app/community' },
-            { icon: 'forum',               label: isZh ? '消息' : 'Messages',  path: '/app/messages' },
-            { icon: 'person',              label: isZh ? '我的' : 'Me',        path: '/app/profile' },
+            { icon: 'church',      label: isZh ? '教会' : 'Church',  path: '/app/about' },
+            { icon: 'dashboard',   label: isZh ? '主日' : 'Sunday',  path: '/app/dashboard' },
+            { icon: 'groups',      label: isZh ? '小组' : 'Groups',  path: '/app/groups' },
+            { icon: 'diversity_3', label: isZh ? '活动' : 'Events',  path: '/app/community' },
+            { icon: 'person',      label: isZh ? '我' : 'Me',        path: '/app/profile' },
           ].map(tab => (
             <NavLink
               key={tab.path}
