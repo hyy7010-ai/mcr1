@@ -3,6 +3,7 @@ import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { DEMO_CHURCH_ID, SAMPLE_CHURCH, sampleVisit, seedLocalSampleData } from '../lib/demoChurch';
 import { churchService } from '../services/churchService';
+import { OWNER_EMAILS } from '../lib/permissions';
 
 interface AuthContextType {
   session: Session | null;
@@ -41,8 +42,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logo_url: 'https://images.unsplash.com/photo-1438032005730-c7793010b9a9?w=128&h=128&fit=crop'
     };
 
-    const SUPER_ADMIN_ROLES_SET = new Set(['Super Admin', 'SuperAdmin', 'super_admin']);
-    const OWNER_EMAILS_SET = new Set(['jzey805@gmail.com', 'hyy7010@gmail.com']);
+    // 用 permissions.ts 那一份，别再各留一份副本 —— 两处清单迟早会不一致
+    const SUPER_ADMIN_ROLES_SET = { has: (r?: string) => !!r && r.replace(/\s+/g, '').toUpperCase() === 'SUPERADMIN' };
+    const OWNER_EMAILS_SET = OWNER_EMAILS;
 
     const resolveSuperAdminChurch = () => {
       const stored = localStorage.getItem('super_admin_viewing_church');

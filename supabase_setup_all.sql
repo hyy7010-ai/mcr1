@@ -75,7 +75,7 @@ as $fn$
       where id = auth.uid()
         and upper(replace(role, ' ', '')) = 'SUPERADMIN'
     )
-    or lower(coalesce(auth.jwt() ->> 'email', '')) in ('jzey805@gmail.com', 'hyy7010@gmail.com');
+    or lower(coalesce(auth.jwt() ->> 'email', '')) in ('jzey805@gmail.com', 'hyy7010@gmail.com', 'admin@fliptus.com');
 $fn$;
 
 -- 示例教会的行：人人可读，仅平台管理员可写。

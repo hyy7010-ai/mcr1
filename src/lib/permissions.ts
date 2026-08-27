@@ -9,18 +9,32 @@ import { DEMO_CHURCH_ID, sampleVisit } from './demoChurch';
  * everywhere.
  */
 
-/** Roles considered "Super Admin" level. */
-const SUPER_ADMIN_ROLES = new Set(['Super Admin', 'SuperAdmin', 'super_admin']);
+/**
+ * Roles considered "Super Admin" level。去空格转大写再比 —— 库里这一列
+ * 出现过 'Super Admin' / 'SuperAdmin' / 'SUPERADMIN' 三种写法，逐个列举
+ * 迟早漏。
+ */
+const isSuperAdminRole = (role?: string) =>
+  !!role && role.replace(/\s+/g, '').toUpperCase() === 'SUPERADMIN';
 
-/** Developer / owner e-mails that always get Super Admin treatment. */
-const OWNER_EMAILS = new Set(['jzey805@gmail.com', 'hyy7010@gmail.com']);
+/**
+ * 平台所有者邮箱：无论 profiles.role 是什么都按 Super Admin 处理。
+ * 这是唯一一份清单 —— AuthContext 和 supabase_setup_all.sql 的
+ * is_platform_admin() 都要与它保持一致，否则会出现「前端显示控制台、
+ * 数据库拒绝写入」的错配。
+ */
+export const OWNER_EMAILS = new Set([
+  'jzey805@gmail.com',
+  'hyy7010@gmail.com',
+  'admin@fliptus.com',
+]);
 
 /**
  * Returns true if the user is a Super Admin, regardless of whether
  * the check comes from a real session or a demo session.
  */
 export function isSuperAdmin(profile: any, user?: any): boolean {
-  if (SUPER_ADMIN_ROLES.has(profile?.role)) return true;
+  if (isSuperAdminRole(profile?.role)) return true;
   const email = (user?.email ?? profile?.email ?? '').toLowerCase().trim();
   return OWNER_EMAILS.has(email);
 }
