@@ -7,12 +7,13 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { memberService, Member } from '../services/memberService';
 import { FEATURE_MODULES, FEATURE_ROLES, FeatureConfig } from '../lib/featureModules';
+import ZoomIntegrationCard from '../components/ZoomIntegrationCard';
 
 export default function Tools() {
   const { t, language, isZh } = useLanguage();
   const { mode } = useMode();
   const { church, updateChurch, profile } = useAuth();
-  const [activeTab, setActiveTab] = useState<'finance' | 'newcomers' | 'features'>('finance');
+  const [activeTab, setActiveTab] = useState<'finance' | 'newcomers' | 'features' | 'integrations'>('finance');
   const [featureCfg, setFeatureCfg] = useState<FeatureConfig>(() => (church as any)?.feature_config || {});
   const [savingFeatures, setSavingFeatures] = useState(false);
   const [featuresSaved, setFeaturesSaved] = useState(false);
@@ -413,6 +414,17 @@ export default function Tools() {
             <span className="material-symbols-outlined text-[18px]">tune</span>
             {isZh ? '功能权限' : 'Feature Permissions'}
           </button>
+          <button
+            onClick={() => setActiveTab('integrations')}
+            className={`px-6 py-3 rounded-2xl font-bold transition-all flex items-center gap-2 ${
+              activeTab === 'integrations'
+                ? 'bg-black text-white shadow-lg'
+                : 'bg-surface-container-low text-on-surface hover:bg-surface-container'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[18px]">hub</span>
+            {t('zoomIntegrations')}
+          </button>
           </>)}
         </div>
       </div>
@@ -719,6 +731,18 @@ export default function Tools() {
                   ? '注：超级管理员始终可见全部；仪表盘、成员审核、管理工具等核心入口不受此限制。'
                   : 'Note: Super admins always see everything; core items (Dashboard, Approvals, Tools) are not affected.'}
               </p>
+            </motion.div>
+          )}
+
+          {activeTab === 'integrations' && (
+            <motion.div
+              key="integrations"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="max-w-3xl"
+            >
+              <ZoomIntegrationCard />
             </motion.div>
           )}
 

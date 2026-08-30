@@ -98,6 +98,7 @@ const Publications = lazyPage(() => import('./pages/Publications'));
 const Community    = lazyPage(() => import('./pages/Community'));
 const Messages     = lazyPage(() => import('./pages/Messages'));
 const Visitation   = lazyPage(() => import('./pages/Visitation'));
+const ZoomMeeting  = lazyPage(() => import('./pages/ZoomMeeting'));
 
 // Minimal spinner shown while a lazy page chunk is loading
 function PageLoader() {
@@ -184,6 +185,8 @@ export default function App() {
                 <Route path="community"    element={<Suspense fallback={<PageLoader />}><Community /></Suspense>} />
                 <Route path="messages"     element={<Suspense fallback={<PageLoader />}><Messages /></Suspense>} />
                 <Route path="visitation"   element={<Suspense fallback={<PageLoader />}><Visitation /></Suspense>} />
+                {/* 页内 Zoom 会议。会议号走路由参数，入会密码用 query（?pwd=） */}
+                <Route path="meeting/:meetingNumber" element={<Suspense fallback={<PageLoader />}><ZoomMeeting /></Suspense>} />
               </Route>
             </Routes>
           </BrowserRouter>

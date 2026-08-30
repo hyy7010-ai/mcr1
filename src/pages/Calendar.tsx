@@ -7,6 +7,12 @@ import { getActiveChurchId, isDemoChurch } from '../lib/permissions';
 import { isSampleChurch } from '../lib/demoChurch';
 import { logActivity } from '../services/activityService';
 import { motion, AnimatePresence } from 'motion/react';
+import { useNavigate } from 'react-router-dom';
+import ZoomEventLinks from '../components/ZoomEventLinks';
+import {
+  getZoomStatus, createMeeting, deleteMeeting, getStartUrl, toZoomStartTime,
+  type ZoomStatus,
+} from '../services/zoomService';
 
 interface ChurchEvent {
   id: string;
@@ -18,6 +24,11 @@ interface ChurchEvent {
   color: string;
   description?: string;
   created_at: string;
+  // Zoom 会议。start_url（主持人链接）刻意不存 —— 它带一次性 token、约两
+  // 小时过期，存库既会失效又等于把主持权限摊给所有能读活动的人。
+  zoom_meeting_id?: string;
+  zoom_join_url?: string;
+  zoom_passcode?: string;
 }
 
 const CATEGORIES = ['Service', 'Fellowship', 'Prayer', 'Youth', 'Other'];
@@ -148,8 +159,24 @@ export default function Calendar() {
     description: '',
     repeat: 'none' as 'none' | 'weekly' | 'biweekly' | 'monthly',
     repeatCount: 4,
+    createZoom: false,
+    zoomDuration: 90,
+    zoomAutoRecord: false,
   });
   const [saving, setSaving] = useState(false);
+
+  // ── Zoom ────────────────────────────────────────────────────────────────
+  const navigate = useNavigate();
+  const [zoom, setZoom] = useState<ZoomStatus | null>(null);
+  const [zoomNotice, setZoomNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isDemo) { setZoom(null); return; }
+    getZoomStatus().then(setZoom);
+  }, [activeChurchId, isDemo]);
+
+  /** 教会时区。没设过就退回 churches 表的默认值。 */
+  const churchTimezone = (church as any)?.timezone || 'Australia/Sydney';
 
   useEffect(() => {
     if (!activeChurchId) return;
@@ -215,6 +242,29 @@ export default function Calendar() {
         ? [formData.event_date]
         : getRepeatDates(formData.event_date, formData.repeat, formData.repeatCount);
 
+      // 重复活动的每一场都单独开一个 Zoom 会议 —— 会议号不同，才好按场次
+      // 分别拉出席和录制。某一场建失败不连累其它场，活动照常保存。
+      const meetings: (Awaited<ReturnType<typeof createMeeting>> | null)[] = [];
+      if (formData.createZoom && zoom?.connected && !isDemo) {
+        let failed = 0;
+        for (const date of dates) {
+          try {
+            meetings.push(await createMeeting({
+              topic: formData.title,
+              startTime: toZoomStartTime(date, formData.event_time),
+              duration: formData.zoomDuration,
+              timezone: churchTimezone,
+              agenda: formData.description,
+              autoRecord: formData.zoomAutoRecord,
+            }));
+          } catch {
+            meetings.push(null);
+            failed++;
+          }
+        }
+        if (failed) setZoomNotice(t('zoomMeetingFailed'));
+      }
+
       const newEvents: ChurchEvent[] = dates.map((date, idx) => ({
         id: `local-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 7)}`,
         church_id: activeChurchId || 'demo',
@@ -225,6 +275,9 @@ export default function Calendar() {
         color: formData.color,
         description: formData.description || undefined,
         created_at: new Date().toISOString(),
+        zoom_meeting_id: meetings[idx]?.meetingId,
+        zoom_join_url: meetings[idx]?.joinUrl,
+        zoom_passcode: meetings[idx]?.passcode ?? undefined,
       }));
 
       if (!isDemo && activeChurchId) {
@@ -237,6 +290,9 @@ export default function Calendar() {
             category: e.category,
             color: e.color,
             description: e.description,
+            zoom_meeting_id: e.zoom_meeting_id,
+            zoom_join_url: e.zoom_join_url,
+            zoom_passcode: e.zoom_passcode,
           }));
           await supabase.from('church_events').insert(toInsert);
         } catch {}
@@ -255,7 +311,7 @@ export default function Calendar() {
         type: 'Resource',
       });
       setShowAddForm(false);
-      setFormData({ title: '', event_date: '', event_time: '', category: 'Service', color: '#6366f1', description: '', repeat: 'none', repeatCount: 4 });
+      setFormData({ title: '', event_date: '', event_time: '', category: 'Service', color: '#6366f1', description: '', repeat: 'none', repeatCount: 4, createZoom: false, zoomDuration: 90, zoomAutoRecord: false });
     } finally {
       setSaving(false);
     }
@@ -264,6 +320,12 @@ export default function Calendar() {
   async function handleDeleteEvent(eventId: string) {
     if (!confirm('Delete this event?')) return;
     try {
+      // 删活动前先取消对应的 Zoom 会议，否则那个会议会一直挂在教会账号里，
+      // 而 GraceFlow 里已经没有任何入口能再找到它。
+      const target = events.find(e => e.id === eventId);
+      if (target?.zoom_meeting_id && !isDemo) {
+        try { await deleteMeeting(target.zoom_meeting_id); } catch { /* 会议可能已在 Zoom 侧删掉 */ }
+      }
       if (!isDemo && !eventId.startsWith('local-')) {
         await supabase.from('church_events').delete().eq('id', eventId);
       }
@@ -541,6 +603,16 @@ export default function Calendar() {
                             {ev.description && (
                               <p className="text-[11px] text-on-surface-variant mt-2 leading-relaxed">{ev.description}</p>
                             )}
+                            {ev.zoom_meeting_id && (
+                              <ZoomEventLinks
+                                meetingId={ev.zoom_meeting_id}
+                                joinUrl={ev.zoom_join_url}
+                                passcode={ev.zoom_passcode}
+                                topic={ev.title}
+                                canHost={canManage}
+                                sdkReady={!!zoom?.sdkConfigured}
+                              />
+                            )}
                           </div>
                           {canManage && (
                             <button
@@ -739,6 +811,76 @@ export default function Calendar() {
                     className="w-full rounded-2xl border border-outline-variant bg-surface-container py-3 px-5 text-sm focus:border-primary outline-none transition-all resize-none"
                   />
                 </div>
+
+                {/* Zoom：只在教会真的连了 Zoom 时才出现。没连就完全不显示，
+                    而不是给一个点了没反应的勾选框。 */}
+                {zoom?.connected && !isDemo && (
+                  <div className="rounded-2xl border border-outline-variant/40 bg-surface-container-low p-4">
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.createZoom}
+                        onChange={e => setFormData(f => ({ ...f, createZoom: e.target.checked }))}
+                        className="mt-0.5 w-4 h-4 rounded accent-black cursor-pointer"
+                      />
+                      <span className="min-w-0">
+                        <span className="flex items-center gap-1.5 text-sm font-bold text-on-surface">
+                          <span className="material-symbols-outlined text-[16px] text-primary">videocam</span>
+                          {t('zoomCreateMeeting')}
+                        </span>
+                        <span className="block text-[11px] text-on-surface-variant mt-1 leading-relaxed">
+                          {t('zoomCreateMeetingHint')}
+                        </span>
+                      </span>
+                    </label>
+
+                    {formData.createZoom && (
+                      <div className="mt-4 pl-7 space-y-3">
+                        <div className="flex items-center gap-3">
+                          <label className="text-[10px] uppercase font-bold tracking-widest text-outline whitespace-nowrap">
+                            {t('zoomDuration')}
+                          </label>
+                          <input
+                            type="number"
+                            min={15}
+                            max={600}
+                            step={15}
+                            value={formData.zoomDuration}
+                            onChange={e => setFormData(f => ({
+                              ...f, zoomDuration: Math.max(15, parseInt(e.target.value) || 15),
+                            }))}
+                            className="w-24 rounded-2xl border border-outline-variant bg-surface-container py-2 px-3 text-sm focus:border-primary outline-none"
+                          />
+                        </div>
+
+                        {/* 免费账号没有云录制，勾了也不会生效 —— 干脆不给这个选项 */}
+                        {zoom.planType !== 'basic' && (
+                          <label className="flex items-center gap-2.5 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={formData.zoomAutoRecord}
+                              onChange={e => setFormData(f => ({ ...f, zoomAutoRecord: e.target.checked }))}
+                              className="w-4 h-4 rounded accent-black cursor-pointer"
+                            />
+                            <span className="text-sm text-on-surface">{t('zoomAutoRecord')}</span>
+                          </label>
+                        )}
+
+                        {zoom.planType === 'basic' && (
+                          <p className="text-[11px] text-amber-800 bg-amber-500/10 rounded-xl p-3 leading-relaxed">
+                            {t('zoomBasicWarning')}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {zoomNotice && (
+                  <p className="text-[11px] text-error bg-error/10 rounded-xl p-3 leading-relaxed">
+                    {zoomNotice}
+                  </p>
+                )}
               </div>
 
               <div className="flex gap-3 mt-6">

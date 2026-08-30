@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import ZoomAttendanceImport from '../components/ZoomAttendanceImport';
+import { getZoomStatus, type ZoomStatus } from '../services/zoomService';
 import { useMode } from '../contexts/ModeContext';
 import { getActiveChurchId, isDemoChurch } from '../lib/permissions';
 import { isSampleChurch, sampleAttendance } from '../lib/demoChurch';
@@ -114,6 +116,31 @@ export default function Attendance() {
     if (!activeChurchId) return;
     memberService.getMembers(activeChurchId).then(setMembers).catch(() => {});
   }, [activeChurchId]);
+
+  // ── Zoom 线上出席 ──────────────────────────────────────────────────────
+  const [zoom, setZoom] = useState<ZoomStatus | null>(null);
+  const [showZoomImport, setShowZoomImport] = useState(false);
+
+  useEffect(() => {
+    if (isDemo) { setZoom(null); return; }
+    getZoomStatus().then(setZoom);
+  }, [activeChurchId, isDemo]);
+
+  /**
+   * 把 Zoom 导入的结果并进当前编辑中的名单。
+   *
+   * 用并集而不是覆盖 —— 现场点过名的人不能被线上名单冲掉，混合聚会里两边
+   * 都有人。人数同样取「并集人数」和已填人数的较大者：线上 28 人不该把管理
+   * 员刚数出来的 40 人改小。
+   */
+  const applyZoomImport = (memberIds: string[]) => {
+    setEditPresentIds(prev => [...new Set([...prev, ...memberIds])]);
+    setEditHeadcount(prev => Math.max(
+      prev,
+      new Set([...editPresentIds, ...memberIds]).size,
+    ));
+    setShowZoomImport(false);
+  };
 
   const startNew = () => {
     const today = todayLocal();
@@ -461,6 +488,17 @@ export default function Attendance() {
                         {t('memberCheckin')}
                         <span className="ml-2 text-primary">({editPresentIds.length}/{members.length})</span>
                       </label>
+                      {/* 只在教会连了 Zoom 且已选好日期时出现 */}
+                      {zoom?.connected && !isDemo && editDate && (
+                        <button
+                          type="button"
+                          onClick={() => setShowZoomImport(true)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-outline-variant/30 text-[10px] font-black uppercase tracking-widest hover:bg-surface-container-low transition-all whitespace-nowrap"
+                        >
+                          <span className="material-symbols-outlined text-[14px] text-primary">videocam</span>
+                          {t('zoomImportAttendance')}
+                        </button>
+                      )}
                     </div>
                     <div className="relative">
                       <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline-variant text-[16px]">search</span>
@@ -657,6 +695,17 @@ export default function Attendance() {
           </AnimatePresence>
         </div>
       </div>
+
+      {showZoomImport && activeChurchId && (
+        <ZoomAttendanceImport
+          churchId={activeChurchId}
+          serviceDate={editDate}
+          members={members}
+          planType={zoom?.planType ?? null}
+          onImport={applyZoomImport}
+          onClose={() => setShowZoomImport(false)}
+        />
+      )}
     </div>
   );
 }
