@@ -10,3 +10,6 @@ coverage/
 # Supabase CLI local state
 supabase/.temp/
 supabase/.branches/
+
+# 就地替换资源时留下的备份
+*.bak

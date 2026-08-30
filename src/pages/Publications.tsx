@@ -4,6 +4,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useMode } from '../contexts/ModeContext';
 import { getActiveChurchId, isDemoChurch, canManageChurch } from '../lib/permissions';
+import ZoomRecordingsPanel from '../components/ZoomRecordingsPanel';
+import { getZoomStatus, type ZoomStatus } from '../services/zoomService';
 import { isSampleChurch, SAMPLE_PUBLICATIONS } from '../lib/demoChurch';
 import { supabase } from '../lib/supabase';
 import { logActivity } from '../services/activityService';
@@ -544,6 +546,15 @@ export default function Publications() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<Category | 'All'>('All');
 
+  // ── Zoom 云录制 ─────────────────────────────────────────────────────────
+  const [zoom, setZoom] = useState<ZoomStatus | null>(null);
+  const [showRecordings, setShowRecordings] = useState(false);
+
+  useEffect(() => {
+    if (isDemo) { setZoom(null); return; }
+    getZoomStatus().then(setZoom);
+  }, [activeChurchId, isDemo]);
+
   // ── Load publications ──────────────────────────────────────────────────────
   const loadPublications = async () => {
     setIsLoading(true);
@@ -738,15 +749,26 @@ export default function Publications() {
             {t('publicationsDesc')}
           </p>
         </div>
-        {isManager && (
-          <button
-            onClick={() => setShowUpload(true)}
-            className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-primary text-white text-sm font-black hover:bg-primary/90 transition-all shadow-md shadow-primary/20 shrink-0"
-          >
-            <span className="material-symbols-outlined text-[18px]">upload_file</span>
-            {t('uploadLabel')}
-          </button>
-        )}
+        <div className="flex items-center gap-2 shrink-0">
+          {isManager && zoom?.connected && zoom.planType !== 'basic' && (
+            <button
+              onClick={() => setShowRecordings(true)}
+              className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-white border border-outline-variant text-sm font-black text-on-surface hover:bg-surface-container-high transition-all shrink-0 whitespace-nowrap"
+            >
+              <span className="material-symbols-outlined text-[18px] text-primary">smart_display</span>
+              {t('zoomRecordings')}
+            </button>
+          )}
+          {isManager && (
+            <button
+              onClick={() => setShowUpload(true)}
+              className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-primary text-white text-sm font-black hover:bg-primary/90 transition-all shadow-md shadow-primary/20 shrink-0 whitespace-nowrap"
+            >
+              <span className="material-symbols-outlined text-[18px]">upload_file</span>
+              {t('uploadLabel')}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ── Search + Filter ── */}
@@ -889,6 +911,16 @@ export default function Publications() {
           <PreviewModal pub={previewPub} onClose={() => setPreviewPub(null)} />
         )}
       </AnimatePresence>
+
+      {/* ── Zoom 云录制归档 ── */}
+      {showRecordings && activeChurchId && (
+        <ZoomRecordingsPanel
+          churchId={activeChurchId}
+          createdBy={profile?.full_name || 'Manager'}
+          onArchived={(pub) => setPublications((prev) => [pub as Publication, ...prev])}
+          onClose={() => setShowRecordings(false)}
+        />
+      )}
     </div>
   );
 }

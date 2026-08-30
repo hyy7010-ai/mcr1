@@ -635,10 +635,25 @@ export async function resetDemoChurch(): Promise<SeedResult[]> {
   // 排班：接下来四个主日，每个主日排满六个岗位
   if (members?.length) {
     const byName = (n: string) => members.find((m: any) => m.name.startsWith(n))?.id;
+    // 键必须是 DEFAULT_ROSTER_ROLES 里的岗位名。之前这里写的是「讲员/主领/
+    // 司琴/投影」，App 认的却是「讲道/敬拜/乐手/媒体」—— 十个岗位只有音响和
+    // 招待对得上，另外八个 plan[role] 全是 undefined 被下面的 filter 丢掉，
+    // 样板间每个主日只排出两个人。配人按 MEMBERS 里的 skills 走。
     const plan: Record<string, string | undefined> = {
-      '讲员': byName('陈约翰'), '主领': byName('林恩慈'), '司琴': byName('刘平安'),
-      '音响': byName('张保罗'), '投影': byName('郑安德'), '招待': byName('黄喜乐'),
+      '讲道': byName('陈约翰'),   // 主任牧师，skills 讲道
+      '敬拜': byName('林恩慈'),   // 敬拜带领，skills 主领/钢琴/编曲
+      '乐手': byName('刘平安'),   // skills 钢琴
+      '吉他': byName('王大卫'),   // skills 吉他
+      '音响': byName('张保罗'),   // skills 音响/直播/投影
+      '媒体': byName('郑安德'),   // skills 投影/摄影/剪辑
+      '儿童主日学': byName('吴信实'), // skills 儿童主日学
+      '招待': byName('黄喜乐'),   // skills 招待/接待新朋友
+      '迎宾': byName('张丽华'),   // role 招待
+      '厨房': byName('李美玲'),   // skills 烹饪
     };
+    // 键写错就是静默少排班（上面那个 bug 的形态），让它响。
+    const unknown = Object.keys(plan).filter(r => !ROSTER_ROLES.includes(r));
+    if (unknown.length) throw new Error(`plan 里有 ROSTER_ROLES 之外的岗位名: ${unknown.join('、')}`);
     const rosterRows = [0, 1, 2, 3].flatMap(w =>
       ROSTER_ROLES.map(role => ({ church_id: cid, date: nextSunday(w), staff_id: plan[role], role }))
         .filter(r => r.staff_id));
